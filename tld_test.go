@@ -24,3 +24,7 @@ func TestTLD(t *testing.T) {
 	require.False(t, IsValidTLD("com."))
 	require.False(t, IsValidTLD(".com"))
 }
+
+func TestRefreshTLDs(t *testing.T) {
+	RefreshTLDs()
+}

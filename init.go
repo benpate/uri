@@ -8,8 +8,6 @@ import (
 	"embed"
 	"regexp"
 	"strings"
-
-	"github.com/benpate/remote"
 )
 
 //go:embed all:_iana.txt
@@ -27,13 +25,6 @@ func init() {
 
 	// Import the TLDs into the memory cache
 	importTLDs(data)
-
-	// Refresh the TLDs from the IANA website (ignorning network errors)
-	txn := remote.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt").Result(&data)
-
-	if err := txn.Send(); err == nil {
-		importTLDs(data)
-	}
 }
 
 func importTLDs(data []byte) {
