@@ -10,6 +10,11 @@ func IsValidIPAddress(ip string) bool {
 	return net.ParseIP(ip) != nil
 }
 
+// NotValidIPAddress checks if the given string is NOT a valid IP address.
+func NotValidIPAddress(ip string) bool {
+	return !IsValidIPAddress(ip)
+}
+
 // IsValidIP4Address checks if the given string is a valid IPv4 address.
 func IsValidIP4Address(ip string) bool {
 	return net.ParseIP(ip) != nil && strings.Count(ip, ":") < 2

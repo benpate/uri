@@ -31,6 +31,11 @@ func IsValidHostname(hostname string) bool {
 	return (ValidateHostname(hostname) == nil)
 }
 
+// NotValidHostname returns TRUE if the provided value does NOT contain a valid hostname.
+func NotValidHostname(hostname string) bool {
+	return (ValidateHostname(hostname) != nil)
+}
+
 // ValidateHostname validates a hostname and returns an error describing any issues found.
 func ValidateHostname(hostname string) error {
 
