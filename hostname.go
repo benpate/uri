@@ -34,7 +34,7 @@ func IsValidHostname(hostname string) bool {
 // ValidateHostname validates a hostname and returns an error describing any issues found.
 func ValidateHostname(hostname string) error {
 
-	const location = "dns.ValidateHostname"
+	const location = "uri.ValidateHostname"
 
 	// RULE: Domain cannot be empty
 	if hostname == "" {

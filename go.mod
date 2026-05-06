@@ -1,4 +1,4 @@
-module github.com/benpate/dns
+module github.com/benpate/uri
 
 go 1.25.0
 
