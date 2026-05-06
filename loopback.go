@@ -1,4 +1,4 @@
-package dns
+package uri
 
 // IsLoopback returns TRUE if the provided domain is a loopback address (localhost, 127.0.0.1, ::1).
 func IsLoopback(domain string) bool {
