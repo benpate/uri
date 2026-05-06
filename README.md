@@ -1,1 +1,1 @@
-# dns
+# DNS - Resillient tools for working with DNS and URL values
