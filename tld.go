@@ -1,8 +1,10 @@
 package uri
 
 import (
+	"io"
+	"net/http"
+
 	"github.com/benpate/derp"
-	"github.com/benpate/remote"
 )
 
 /******************************************
@@ -48,12 +50,26 @@ func ValidateTLD(tld string) error {
 // RefreshTLDs loads the most recent TLD list from the IANA website.
 func RefreshTLDs() {
 
-	data := make([]byte, 0)
+	const location = "uri.RefreshTLDs"
 
-	// Refresh the TLDs from the IANA website (ignorning network errors)
-	txn := remote.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt").Result(&data)
+	// Retrieve the IANA list from the IANA website.  If this fails, then we'll just keep using the existing list.
+	response, err := http.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
 
-	if err := txn.Send(); err == nil {
-		importTLDs(data)
+	if err != nil {
+		derp.Report(derp.Wrap(err, location, "Unable to retrieve TLD list from IANA website"))
+		return
 	}
+
+	defer response.Body.Close()
+
+	// Read the IANA data into a slice of bytes
+	data, err := io.ReadAll(response.Body)
+
+	if err != nil {
+		derp.Report(derp.Wrap(err, location, "Unable to read TLD list from IANA website"))
+		return
+	}
+
+	// Import the TLDs into memory
+	importTLDs(data)
 }
