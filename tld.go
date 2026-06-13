@@ -65,6 +65,12 @@ func RefreshTLDs() {
 		return
 	}
 
+	// Redundant nil check: to satisfy nilaway's static analysis.
+	if response == nil {
+		derp.Report(derp.Internal(location, "Received nil error AND nil response. This should never happen."))
+		return
+	}
+
 	defer func() {
 		_ = response.Body.Close()
 	}()
