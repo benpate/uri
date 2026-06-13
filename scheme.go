@@ -15,6 +15,8 @@ const SchemeHTTP = "http"
 // SchemeHTTPS represents the "https" network scheme (without the :// suffix)
 const SchemeHTTPS = "https"
 
+// Scheme returns the scheme portion of a URL (without the "://" suffix),
+// or an empty string if the URL cannot be parsed.
 func Scheme(uri string) string {
 	parsedURL, err := url.Parse(uri)
 
