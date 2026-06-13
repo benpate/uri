@@ -69,7 +69,7 @@ func ValidateHostname(hostname string) error {
 
 	// RULE: Validate total length (RFC 1035)
 	if len(ascii) > 253 {
-		return derp.Validation("Domain exceeds maximum length of 253 characters")
+		return derp.Validation("Domain cannot be longer than 253 characters")
 	}
 
 	// Each part of the domain must be valid
@@ -85,7 +85,7 @@ func ValidateHostname(hostname string) error {
 			return derp.Validation("Domain segment cannot be empty")
 		}
 		if len(domainSegment) > 63 {
-			return derp.Validation("Domain segment exceeds maximum length of 63 characters")
+			return derp.Validation("Domain segment cannot be longer than 63 characters")
 		}
 		if !validDomainSegment.MatchString(domainSegment) {
 			return derp.Validation("Domain segment contains invalid characters")
