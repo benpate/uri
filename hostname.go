@@ -13,15 +13,13 @@ func Hostname(value string) string {
 
 	value = strings.ToLower(value)
 
-	// Remove HTTP/HTTPS protocol, if present
-	if strings.HasPrefix(value, ProtocolHTTPS) {
-		value = strings.TrimPrefix(value, ProtocolHTTPS)
-	} else if strings.HasPrefix(value, ProtocolHTTP) {
-		value = strings.TrimPrefix(value, ProtocolHTTP)
+	// Remove the protocol (e.g. "http://", "https://", "ftp://"), if present
+	if _, after, found := strings.Cut(value, ProtocolSuffix); found {
+		value = after
 	}
 
 	value, _, _ = strings.Cut(value, "/") // Remove path values
-	value, _, _ = strings.Cut(value, ":") // Remote port values
+	value, _, _ = strings.Cut(value, ":") // Remove port values
 
 	return value
 }
