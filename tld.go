@@ -3,6 +3,7 @@ package uri
 import (
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/benpate/derp"
 )
@@ -32,6 +33,8 @@ func NotValidTLD(tld string) bool {
 	return !IsValidTLD(tld)
 }
 
+// ValidateTLD returns an error if the provided top-level domain is empty or is
+// not found in the IANA list.
 func ValidateTLD(tld string) error {
 
 	// RULE: TLD cannot be empty
@@ -52,18 +55,22 @@ func RefreshTLDs() {
 
 	const location = "uri.RefreshTLDs"
 
+	client := http.Client{Timeout: 30 * time.Second}
+
 	// Retrieve the IANA list from the IANA website.  If this fails, then we'll just keep using the existing list.
-	response, err := http.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
+	response, err := client.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
 
 	if err != nil {
 		derp.Report(derp.Wrap(err, location, "Unable to retrieve TLD list from IANA website"))
 		return
 	}
 
-	defer response.Body.Close()
+	defer func() {
+		_ = response.Body.Close()
+	}()
 
-	// Read the IANA data into a slice of bytes
-	data, err := io.ReadAll(response.Body)
+	// Read the IANA data into a slice of bytes, capped to guard against an unbounded response
+	data, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 
 	if err != nil {
 		derp.Report(derp.Wrap(err, location, "Unable to read TLD list from IANA website"))
