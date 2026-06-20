@@ -46,9 +46,29 @@ func IsLocalHostname(hostname string) bool {
 		return true
 	}
 
-	// Private IP ranges: RFC 1918 (IPv4) and RFC 4193 unique-local (IPv6)
+	// If the hostname parses as an IP address, then check it against all of the
+	// ranges that should never be reachable from outside this host. net.ParseIP
+	// normalizes alternate notations (e.g. "127.0.0.2", "0.0.0.0", "::ffff:127.0.0.1")
+	// so they are all caught here even when the string-level checks above miss them.
 	if ip := net.ParseIP(hostname); ip != nil {
-		if ip.IsPrivate() {
+
+		switch {
+
+		// Loopback: 127.0.0.0/8 and ::1 (covers notations the string check misses)
+		case ip.IsLoopback():
+			return true
+
+		// Link-local: 169.254.0.0/16 and fe80::/10. This range includes the
+		// cloud metadata endpoint (169.254.169.254), so it MUST be treated as local.
+		case ip.IsLinkLocalUnicast():
+			return true
+
+		// Unspecified: 0.0.0.0 and ::, which route to local services on many stacks.
+		case ip.IsUnspecified():
+			return true
+
+		// Private ranges: RFC 1918 (IPv4) and RFC 4193 unique-local (IPv6)
+		case ip.IsPrivate():
 			return true
 		}
 	}
