@@ -1,8 +1,5 @@
 package uri
 
-// TODO: Consider: https://github.com/bombsimon/tld-validator
-// TODO: CConsider: https://github.com/weppos/publicsuffix-go
-
 import (
 	"bytes"
 	"embed"
