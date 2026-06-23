@@ -78,9 +78,7 @@ func FuzzParseURL(f *testing.F) {
 	f.Add("")
 
 	f.Fuzz(func(t *testing.T, input string) {
-		parsed, err := ParseURL(input)
-
-		if err == nil {
+		if parsed, err := ParseURL(input); err == nil {
 			require.NotNil(t, parsed)
 			require.True(t, IsSchemeValid(parsed.Scheme), "parsed scheme %q should be valid", parsed.Scheme)
 		} else {

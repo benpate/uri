@@ -49,10 +49,8 @@ func FuzzPath(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		// PathAndQuery always begins with whatever Path returned (when non-empty).
-		path := Path(input)
-		pathAndQuery := PathAndQuery(input)
-
-		if path != "" {
+		if path := Path(input); path != "" {
+			pathAndQuery := PathAndQuery(input)
 			require.True(t, strings.HasPrefix(pathAndQuery, path),
 				"PathAndQuery %q should start with Path %q", pathAndQuery, path)
 		}

@@ -93,9 +93,7 @@ func ValidateHostname(hostname string) error {
 	}
 
 	// Last, validate that the TLD is in the list of valid TLDs from the IANA
-	tld := domainSegments[len(domainSegments)-1]
-
-	if !IsValidTLD(tld) {
+	if tld := domainSegments[len(domainSegments)-1]; !IsValidTLD(tld) {
 		return derp.Validation("Invalid top-level domain")
 	}
 
