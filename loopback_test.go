@@ -8,17 +8,26 @@ import (
 
 func TestIsLoopback(t *testing.T) {
 
-	// The three recognized loopback addresses
+	// The "localhost" hostname is loopback
 	require.True(t, IsLoopback("localhost"))
+
+	// The entire 127.0.0.0/8 block is loopback, not just 127.0.0.1
 	require.True(t, IsLoopback("127.0.0.1"))
+	require.True(t, IsLoopback("127.0.0.2"))
+	require.True(t, IsLoopback("127.1.2.3"))
+	require.True(t, IsLoopback("127.255.255.255"))
+
+	// IPv6 loopback and its aliases
 	require.True(t, IsLoopback("::1"))
+	require.True(t, IsLoopback("0:0:0:0:0:0:0:1"))  // expanded ::1
+	require.True(t, IsLoopback("::ffff:127.0.0.1")) // IPv4-mapped loopback
 
 	// Everything else is not a loopback
 	require.False(t, IsLoopback(""))
-	require.False(t, IsLoopback("LOCALHOST")) // case sensitive
-	require.False(t, IsLoopback("localhost:8080"))
-	require.False(t, IsLoopback("127.0.0.2"))
-	require.False(t, IsLoopback("192.168.0.5"))
+	require.False(t, IsLoopback("LOCALHOST"))      // case sensitive (callers normalize first)
+	require.False(t, IsLoopback("localhost:8080")) // operates on a bare host, not host:port
+	require.False(t, IsLoopback("192.168.0.5"))    // private, but not loopback
+	require.False(t, IsLoopback("0.0.0.0"))        // unspecified, not loopback
 	require.False(t, IsLoopback("otherserver.com"))
 }
 
