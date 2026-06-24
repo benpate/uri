@@ -154,3 +154,53 @@ func TestIsLocalHostname_SSRFRanges(t *testing.T) {
 	// IPv4-mapped IPv6 form of the metadata endpoint
 	require.True(t, IsLocalHostname("::ffff:169.254.169.254"))
 }
+
+// IsLocalHostname delegates its IP case to NotPublicIP, so every special-use
+// range that IsPublicIP blocks is treated as local — not just the loopback /
+// private / link-local ranges. This closes the SSRF gap where CGNAT, NAT64,
+// documentation, benchmark, and reserved addresses were neither public nor local.
+func TestIsLocalHostname_NonPublicRanges(t *testing.T) {
+
+	require.True(t, IsLocalHostname("100.64.0.1"))       // CGNAT (RFC 6598)
+	require.True(t, IsLocalHostname("198.18.0.1"))       // benchmarking (RFC 2544)
+	require.True(t, IsLocalHostname("192.0.2.1"))        // TEST-NET-1 documentation
+	require.True(t, IsLocalHostname("240.0.0.1"))        // reserved / future use
+	require.True(t, IsLocalHostname("255.255.255.255"))  // broadcast
+	require.True(t, IsLocalHostname("2001:db8::1"))      // IPv6 documentation
+	require.True(t, IsLocalHostname("64:ff9b::1.2.3.4")) // NAT64
+	require.True(t, IsLocalHostname("2002::1"))          // 6to4
+
+	// Genuinely public addresses remain non-local
+	require.False(t, IsLocalHostname("8.8.8.8"))
+	require.False(t, IsLocalHostname("2606:4700::1111"))
+}
+
+// Non-IP hostname strings that resolve to the local machine or local network.
+func TestIsLocalHostname_LocalStrings(t *testing.T) {
+
+	// RFC 6761: "localhost" and the entire ".localhost" TLD are loopback
+	require.True(t, IsLocalHostname("localhost"))
+	require.True(t, IsLocalHostname("app.localhost"))
+	require.True(t, IsLocalHostname("a.b.c.localhost"))
+
+	// FQDN root form (trailing dot) is treated the same as the dotless form
+	require.True(t, IsLocalHostname("localhost."))
+	require.True(t, IsLocalHostname("printer.local."))
+
+	// Common /etc/hosts loopback aliases
+	require.True(t, IsLocalHostname("localhost.localdomain"))
+	require.True(t, IsLocalHostname("ip6-localhost"))
+	require.True(t, IsLocalHostname("ip6-loopback"))
+	require.True(t, IsLocalHostname("loopback"))
+
+	// mDNS / Bonjour and internal/Docker suffixes
+	require.True(t, IsLocalHostname("printer.local"))
+	require.True(t, IsLocalHostname("svc.internal"))
+	require.True(t, IsLocalHostname("host.docker.internal"))
+
+	// These must NOT be mistaken for local (substring, not suffix; or a real TLD)
+	require.False(t, IsLocalHostname("example.localhostx"))
+	require.False(t, IsLocalHostname("notlocalhost.com"))
+	require.False(t, IsLocalHostname("myinternal.com"))
+	require.False(t, IsLocalHostname("local.example.com"))
+}
