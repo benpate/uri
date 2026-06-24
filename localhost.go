@@ -36,7 +36,7 @@ func IsLocalHostname(hostname string) bool {
 	// Normalize the hostname
 	hostname = strings.ToLower(hostname)
 
-	// Loopback addresses are always local
+	// Loopback addresses are always local (localhost, 127.0.0.1, ::1)
 	if IsLoopback(hostname) {
 		return true
 	}
