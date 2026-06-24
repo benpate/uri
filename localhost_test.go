@@ -81,6 +81,27 @@ func TestIsLocalHostname_EdgeCases(t *testing.T) {
 	require.False(t, IsLocalHostname("8.8.8.8"))
 }
 
+func TestIsLocalHostname_ShapeTolerance(t *testing.T) {
+
+	// IsLocalHostname normalizes its input, so any URL-ish shape that resolves to
+	// a local host is detected — not just the bare hostname. This is the defense
+	// that prevents a "scheme://" or ":port" wrapper from slipping a local target
+	// past an SSRF-style check.
+	require.True(t, IsLocalHostname("https://localhost/path"))
+	require.True(t, IsLocalHostname("http://localhost:3000/x?y=1"))
+	require.True(t, IsLocalHostname("localhost:3000"))
+	require.True(t, IsLocalHostname("localhost/path"))
+	require.True(t, IsLocalHostname("https://user@localhost"))
+	require.True(t, IsLocalHostname("https://[::1]:8080/x"))
+	require.True(t, IsLocalHostname("[::1]:8080"))
+	require.True(t, IsLocalHostname("192.168.1.5:443"))
+	require.True(t, IsLocalHostname("http://169.254.169.254/latest/meta-data")) // cloud metadata
+
+	// A public host wrapped in URL syntax is still NOT local
+	require.False(t, IsLocalHostname("https://example.com:8080/path"))
+	require.False(t, IsLocalHostname("https://user@example.com"))
+}
+
 func TestIsLocalHostname_IPv6(t *testing.T) {
 
 	// ::1 is the IPv6 loopback (handled as a loopback address)

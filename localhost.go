@@ -33,10 +33,12 @@ func IsLocalHostname(hostname string) bool {
 	// https://www.rfc-editor.org/rfc/rfc4193
 	// https://www.iana.org/assignments/iana-ipv6-special-registry/
 
-	// Normalize the hostname
-	hostname = strings.ToLower(hostname)
+	// Normalize the hostname so that any shape (bare host, "host:port", a full
+	// URL, userinfo, or a bracketed IPv6 literal) reduces to its bare hostname.
+	hostname = NormalizeHost(hostname)
 
-	// Loopback addresses are always local (localhost, 127.0.0.1, ::1)
+	// Loopback addresses are always local. IsLoopback matches "localhost" and the
+	// whole 127.0.0.0/8 block plus ::1 (and aliases like "::ffff:127.0.0.1").
 	if IsLoopback(hostname) {
 		return true
 	}
@@ -46,17 +48,12 @@ func IsLocalHostname(hostname string) bool {
 		return true
 	}
 
-	// If the hostname parses as an IP address, then check it against all of the
-	// ranges that should never be reachable from outside this host. net.ParseIP
-	// normalizes alternate notations (e.g. "127.0.0.2", "0.0.0.0", "::ffff:127.0.0.1")
-	// so they are all caught here even when the string-level checks above miss them.
+	// If the hostname parses as an IP address, then check it against the other
+	// ranges that should never be reachable from outside this host. (Loopback is
+	// already handled above by IsLoopback.)
 	if ip := net.ParseIP(hostname); ip != nil {
 
 		switch {
-
-		// Loopback: 127.0.0.0/8 and ::1 (covers notations the string check misses)
-		case ip.IsLoopback():
-			return true
 
 		// Link-local: 169.254.0.0/16 and fe80::/10. This range includes the
 		// cloud metadata endpoint (169.254.169.254), so it MUST be treated as local.
