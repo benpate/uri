@@ -8,8 +8,18 @@ import (
 
 func TestIsLoopback(t *testing.T) {
 
-	// The "localhost" hostname is loopback
+	// The "localhost" hostname is loopback, as is the whole RFC 6761 ".localhost"
+	// TLD, the FQDN root form, and common /etc/hosts aliases
 	require.True(t, IsLoopback("localhost"))
+	require.True(t, IsLoopback("localhost."))
+	require.True(t, IsLoopback("app.localhost"))
+	require.True(t, IsLoopback("localhost.localdomain"))
+	require.True(t, IsLoopback("ip6-localhost"))
+	require.True(t, IsLoopback("ip6-loopback"))
+	require.True(t, IsLoopback("loopback"))
+
+	// Substring (not suffix) of ".localhost" is NOT loopback
+	require.False(t, IsLoopback("example.localhostx"))
 
 	// The entire 127.0.0.0/8 block is loopback, not just 127.0.0.1
 	require.True(t, IsLoopback("127.0.0.1"))
