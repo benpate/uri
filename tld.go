@@ -23,8 +23,15 @@ func IsValidTLD(tld string) bool {
 		return false
 	}
 
+	// Load the current TLD map. The pointer is always populated by init, but
+	// guard against nil so a misordered init can never panic here.
+	tlds := validTLDs.Load()
+	if tlds == nil {
+		return false
+	}
+
 	// If the value exists in our map, then it's valid
-	_, valid := validTLDs[tld]
+	_, valid := (*tlds)[tld]
 	return valid
 }
 
@@ -42,8 +49,15 @@ func ValidateTLD(tld string) error {
 		return derp.Validation("TLD cannot be empty")
 	}
 
+	// Load the current TLD map. The pointer is always populated by init, but
+	// guard against nil so a misordered init can never panic here.
+	tlds := validTLDs.Load()
+	if tlds == nil {
+		return derp.Validation("TLD is not present in the IANA list.", tld)
+	}
+
 	// If the value exists in our map, then it's valid
-	if _, valid := validTLDs[tld]; !valid {
+	if _, valid := (*tlds)[tld]; !valid {
 		return derp.Validation("TLD is not present in the IANA list.", tld)
 	}
 

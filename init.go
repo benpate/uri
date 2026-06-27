@@ -5,11 +5,16 @@ import (
 	"embed"
 	"regexp"
 	"strings"
+	"sync/atomic"
 )
 
 //go:embed all:_iana.txt
 var embeddedFiles embed.FS
-var validTLDs map[string]struct{}
+
+// validTLDs holds the set of valid IANA TLDs. It is an atomic pointer because
+// RefreshTLDs may replace the whole map at runtime while other goroutines are
+// reading it; an atomic swap keeps reads lock-free and free of data races.
+var validTLDs atomic.Pointer[map[string]struct{}]
 var validDomainSegment *regexp.Regexp = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
 func init() {
@@ -45,6 +50,7 @@ func importTLDs(data []byte) {
 		result[tld] = struct{}{}
 	}
 
-	// Copy the TLDs into the global variable
-	validTLDs = result
+	// Publish the new map with a single atomic swap so concurrent readers see
+	// either the old map or the new one, never a partially-built map.
+	validTLDs.Store(&result)
 }

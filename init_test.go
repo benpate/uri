@@ -2,6 +2,7 @@ package uri
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,9 +13,9 @@ import (
 // into other tests.
 func restoreTLDs(t *testing.T) {
 	t.Helper()
-	original := validTLDs
+	original := validTLDs.Load()
 	t.Cleanup(func() {
-		validTLDs = original
+		validTLDs.Store(original)
 	})
 }
 
@@ -68,6 +69,43 @@ func TestImportTLDs_Empty(t *testing.T) {
 	require.False(t, IsValidTLD("com"))
 }
 
+// TestImportTLDs_ConcurrentReadWrite republishes the TLD map (the same atomic
+// swap RefreshTLDs performs) while many goroutines read it. Run under -race,
+// this guards against the data race that a plain map assignment would cause.
+func TestImportTLDs_ConcurrentReadWrite(t *testing.T) {
+
+	restoreTLDs(t)
+
+	const writers, readers, iterations = 4, 16, 500
+
+	var wg sync.WaitGroup
+
+	// Writers continuously republish the map via importTLDs.
+	for range writers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				importTLDs([]byte("COM\nORG\nNET\n"))
+			}
+		}()
+	}
+
+	// Readers continuously validate TLDs while the map is being swapped.
+	for range readers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				_ = IsValidTLD("com")
+				_ = ValidateTLD("org")
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
 // FuzzImportTLDs verifies that the parser never panics on arbitrary input and
 // that every TLD it accepts is a valid, lower-cased single-segment label.
 func FuzzImportTLDs(f *testing.F) {
@@ -78,16 +116,16 @@ func FuzzImportTLDs(f *testing.F) {
 	f.Add("\n\n\n")
 	f.Add("-bad\nbad-\na.b\n")
 
-	original := validTLDs
+	original := validTLDs.Load()
 	f.Cleanup(func() {
-		validTLDs = original
+		validTLDs.Store(original)
 	})
 
 	f.Fuzz(func(t *testing.T, data string) {
 
 		importTLDs([]byte(data))
 
-		for tld := range validTLDs {
+		for tld := range *validTLDs.Load() {
 			require.True(t, validDomainSegment.MatchString(tld), "invalid TLD accepted: %q", tld)
 			require.Equal(t, tld, strings.ToLower(tld), "TLD was not lower-cased: %q", tld)
 		}
