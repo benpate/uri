@@ -1,4 +1,4 @@
-# 🧝 uri
+# 🧭 uri
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/benpate/uri.svg)](https://pkg.go.dev/github.com/benpate/uri)
 [![Version](https://img.shields.io/github/v/release/benpate/uri?include_prereleases&style=flat-square&color=brightgreen)](https://github.com/benpate/uri/releases)
@@ -27,4 +27,4 @@ Most functions are forgiving by design — they take a raw string, do their best
 
 ## Pull Requests Welcome
 
-I'm trying to make uri the best it can be, and your help is greatly appreciated. If you find a bug or have an idea for a new feature, please open an issue or submit a pull request. We're all in this together! 🧝
+I'm trying to make uri the best it can be, and your help is greatly appreciated. If you find a bug or have an idea for a new feature, please open an issue or submit a pull request. We're all in this together! 🧭
