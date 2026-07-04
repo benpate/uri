@@ -19,8 +19,8 @@ func TestPath_EdgeCases(t *testing.T) {
 	// A path on a non-http(s) scheme is still extracted
 	require.Equal(t, "/a/b", Path("ftp://server.com/a/b"))
 
-	// An unparseable URL (bad percent-escape) returns an empty string
-	require.Equal(t, "", Path("https://localhost/%zz"))
+	// An unparseable URL (bad percent-escape) falls back to the root path
+	require.Equal(t, "/", Path("https://localhost/%zz"))
 }
 
 func TestPathAndQuery(t *testing.T) {
@@ -35,8 +35,8 @@ func TestPathAndQuery_EdgeCases(t *testing.T) {
 	// Query is preserved even when the path is empty (defaults to "/")
 	require.Equal(t, "/?and=query", PathAndQuery("http://localhost?and=query"))
 
-	// An unparseable URL (bad percent-escape) returns an empty string
-	require.Equal(t, "", PathAndQuery("https://localhost/%zz"))
+	// An unparseable URL (bad percent-escape) falls back to the root path
+	require.Equal(t, "/", PathAndQuery("https://localhost/%zz"))
 }
 
 // FuzzPath verifies that Path and PathAndQuery never panic on arbitrary input.
@@ -48,11 +48,17 @@ func FuzzPath(f *testing.F) {
 	f.Add("")
 
 	f.Fuzz(func(t *testing.T, input string) {
-		// PathAndQuery always begins with whatever Path returned (when non-empty).
-		if path := Path(input); path != "" {
-			pathAndQuery := PathAndQuery(input)
-			require.True(t, strings.HasPrefix(pathAndQuery, path),
-				"PathAndQuery %q should start with Path %q", pathAndQuery, path)
-		}
+		path := Path(input)
+		pathAndQuery := PathAndQuery(input)
+
+		// Both functions always return a non-empty, root-absolute path.
+		require.True(t, strings.HasPrefix(path, "/"),
+			"Path(%q) = %q must be root-absolute", input, path)
+		require.True(t, strings.HasPrefix(pathAndQuery, "/"),
+			"PathAndQuery(%q) = %q must be root-absolute", input, pathAndQuery)
+
+		// PathAndQuery always begins with whatever Path returned.
+		require.True(t, strings.HasPrefix(pathAndQuery, path),
+			"PathAndQuery %q should start with Path %q", pathAndQuery, path)
 	})
 }
