@@ -89,6 +89,7 @@ func FuzzPredicatePairsDisagree(f *testing.F) {
 		require.NotEqual(t, IsValidURL(input), NotValidURL(input), "url pair: %q", input)
 		require.NotEqual(t, IsSchemeValid(input), NotSchemeValid(input), "scheme pair: %q", input)
 		require.NotEqual(t, IsLoopback(input), NotLoopback(input), "loopback pair: %q", input)
+		require.NotEqual(t, IsSafeRedirectURL(input), NotSafeRedirectURL(input), "redirect pair: %q", input)
 		require.NotEqual(t, IsLocalHostname(input), NotLocalHostname(input), "local-hostname pair: %q", input)
 		require.NotEqual(t, IsLocalURL(input), NotLocalURL(input), "local-url pair: %q", input)
 		require.NotEqual(t, IsPublicIPAddress(input), NotPublicIPAddress(input), "public-ip pair: %q", input)
@@ -118,15 +119,19 @@ func FuzzSchemeProtocolConsistency(f *testing.F) {
 	f.Fuzz(func(t *testing.T, input string) {
 
 		scheme := Scheme(input)
+		protocol := Protocol(input)
 
-		// When a scheme is present, Protocol is exactly that scheme plus "://".
-		// (The empty-scheme case is intentionally not asserted here: Scheme and
-		// Protocol diverge on url.Parse errors — see the package notes on the
-		// Scheme/Protocol empty-input inconsistency.)
-		if scheme != "" {
-			require.Equal(t, scheme+ProtocolSuffix, Protocol(input),
+		// A non-empty Protocol is always exactly its Scheme plus "://". The converse
+		// does NOT hold: Protocol is "" for a value that never had a "://" at all,
+		// even when Scheme finds a scheme in it ("localhost:3000", "mailto:a@b.c").
+		if protocol != "" {
+			require.Equal(t, scheme+ProtocolSuffix, protocol,
 				"Protocol must equal Scheme + suffix for %q", input)
 		}
+
+		// Protocol NEVER returns a bare suffix, which is not a usable prefix.
+		require.NotEqual(t, ProtocolSuffix, protocol,
+			"Protocol must not return a bare %q for %q", ProtocolSuffix, input)
 
 		// IsSchemeValid only accepts the two known schemes, and validity implies
 		// the scheme is exactly one of them.
@@ -160,6 +165,42 @@ func FuzzPrependProtocolWellFormed(f *testing.F) {
 		if result := PrependProtocol(input); result != "" {
 			require.True(t, IsValidURL(result),
 				"non-empty PrependProtocol(%q) = %q must be a valid URL", input, result)
+		}
+	})
+}
+
+// FuzzSafeURLMatchesRedirectGuard pins the relationship between the two link-safety
+// entry points: SafeURL must accept exactly what IsSafeRedirectURL accepts, because
+// both ask parseSafeURL. SafeURL adds neutralization on top -- never a looser or
+// stricter rule about what is safe. The one permitted gap is that SafeURL's ""
+// return doubles as its rejection sentinel, so a safe value that re-serializes to
+// "" (the empty string, "//") is indistinguishable from a rejection.
+func FuzzSafeURLMatchesRedirectGuard(f *testing.F) {
+
+	addSeeds(f)
+
+	for _, seed := range []string{
+		"javascript:alert(1)", "data:text/html,<script>", "//evil.com/x", "//",
+		"/path", "?q=1", "#frag", "mailto:a@b.c", "\tjavascript:alert(1)",
+		"https://x.com/a'b", "/\\evil.com", "%6aavascript:alert(1)",
+	} {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, input string) {
+
+		safe := IsSafeRedirectURL(input)
+		neutralized := SafeURL(input)
+
+		// SafeURL must NEVER hand back a value the redirect guard would refuse
+		if neutralized != "" {
+			require.True(t, safe, "SafeURL accepted %q -> %q, which IsSafeRedirectURL rejects", input, neutralized)
+		}
+
+		// ...and must only withhold an accepted value when that value is blank anyway
+		if safe && neutralized == "" {
+			require.Equal(t, "", SafeURL(neutralized),
+				"SafeURL withheld a non-blank accepted value for %q", input)
 		}
 	})
 }

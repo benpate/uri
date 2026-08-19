@@ -64,6 +64,7 @@ func ValidateTLD(tld string) error {
 		return derp.Validation("TLD is not present in the IANA list.", tld)
 	}
 
+	// The IANA has spoken
 	return nil
 }
 
@@ -73,12 +74,14 @@ func RefreshTLDs() {
 }
 
 // refreshTLDsFrom fetches a TLD list from the provided URL and publishes it,
-// keeping the existing list on any failure. The URL is a parameter so that
-// tests can exercise the failure paths against a local server.
+// keeping the existing list on any failure.
 func refreshTLDsFrom(listURL string) {
 
+	// The URL is a parameter, not a constant, so that tests can drive every failure
+	// path below against a local server.
 	const location = "uri.RefreshTLDs"
 
+	// Bound the whole exchange; a hung IANA must not pin this goroutine open.
 	client := http.Client{Timeout: 30 * time.Second}
 
 	// Retrieve the IANA list from the IANA website.  If this fails, then we'll just keep using the existing list.

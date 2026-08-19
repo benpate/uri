@@ -19,12 +19,26 @@ const ProtocolHTTPS = "https://"
 const ProtocolSuffix = "://"
 
 // Protocol returns the protocol portion of a URL.
-// If the URL is not valid, then an empty string is returned.
+// If the URL is not valid, or has no scheme, then an empty string is returned.
 func Protocol(uri string) string {
 
 	parsedURL, err := url.Parse(uri)
 
 	if err != nil {
+		return ""
+	}
+
+	// RULE: A value with no scheme has no protocol. Returning a bare "://" would
+	// be a prefix that no caller can concatenate into a valid URL.
+	if parsedURL.Scheme == "" {
+		return ""
+	}
+
+	// RULE: A protocol includes the "://" suffix, so the value must actually have
+	// had one. A non-empty Opaque means it did not: "example.com:8080/path" parses
+	// as the scheme "example.com", and "mailto:me@example.com" as "mailto", neither
+	// of which is a protocol.
+	if parsedURL.Opaque != "" {
 		return ""
 	}
 

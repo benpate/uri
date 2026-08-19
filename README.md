@@ -16,8 +16,9 @@ Most functions are forgiving by design — they take a raw string, do their best
 
 - **URLs** — [url.go](url.go): `ParseURL` (a stricter `url.Parse` that *requires* an http/https scheme and a valid hostname), `ValidateURL`, `IsValidURL`.
 - **Hostnames** — [hostname.go](hostname.go): `Hostname` (strip everything down to the host), `ValidateHostname` (RFC 1035 lengths + IANA TLD check, with IP and local names exempted).
-- **Scheme / protocol** — [scheme.go](scheme.go), [protocol.go](protocol.go): `Scheme` (no `://`) vs `Protocol` (with `://`); `GuessSchemeForHostname` / `PrependProtocol` pick http for local hosts and https for public ones.
-- **Redirect / link safety** — [redirect.go](redirect.go): `IsSafeRedirectURL` accepts only same-site relative paths or absolute http(s) URLs, rejecting `javascript:`/`data:`/protocol-relative targets that turn an open redirect into XSS.
+- **Scheme / protocol** — [scheme.go](scheme.go), [protocol.go](protocol.go): `Scheme` (no `://`) vs `Protocol` (with `://`, and `""` when the value never had one); `GuessSchemeForHostname` / `PrependProtocol` pick http for local hosts and https for public ones.
+- **Origins** — [host.go](host.go), [origin.go](origin.go): `Host` returns the RFC 6454 origin (default ports omitted); `IsSameOrigin` / `NotSameOrigin` compare two of them.
+- **Redirect / link safety** — [redirect.go](redirect.go), [safeurl.go](safeurl.go): `IsSafeRedirectURL` / `NotSafeRedirectURL` accept only same-site relative paths or absolute http(s) URLs, rejecting `javascript:`/`data:`/protocol-relative targets that turn an open redirect into XSS. `SafeURL` applies the same rule and additionally *neutralizes* the value for use in an HTML attribute.
 - **Local-network detection** — [localhost.go](localhost.go), [loopback.go](loopback.go): `IsLocalHostname`, `IsLocalURL`, `IsLoopback`.
 - **Public-IP / SSRF** — [public.go](public.go): `IsPublicIP`, `NotPublicIP`, `IsPublicIPAddress`.
 - **TLDs** — [tld.go](tld.go), [init.go](init.go): `IsValidTLD`, `ValidateTLD`, `RefreshTLDs`; the IANA list is embedded from [_iana.txt](_iana.txt).

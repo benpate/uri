@@ -59,6 +59,7 @@ func IsPublicIP(ip net.IP) bool {
 		}
 	}
 
+	// Out there on the big wide internet
 	return true
 }
 

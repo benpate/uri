@@ -8,8 +8,7 @@ import (
 	"sync/atomic"
 )
 
-// embeddedFiles holds the IANA TLD list that is compiled into the binary,
-// so that the package is fully functional with no network access.
+// embeddedFiles holds the IANA TLD list that is compiled into the binary.
 //
 //go:embed all:_iana.txt
 var embeddedFiles embed.FS
@@ -50,14 +49,16 @@ func importTLDs(data []byte) {
 
 // parseTLDs reads an IANA TLD list into a set of lower-cased top-level domains,
 // skipping comments, blank lines, and anything that is not a single valid label.
-// Parsing is kept separate from publishing so that a caller can inspect the
-// result -- see RefreshTLDs -- before replacing a known-good list with it.
 func parseTLDs(data []byte) map[string]struct{} {
+
+	// Kept separate from importTLDs so that RefreshTLDs can inspect the result
+	// before it replaces a known-good list with it.
 
 	// Split the file into lines and prepare a result map.
 	lines := bytes.Split(data, []byte("\n"))
 	result := make(map[string]struct{}, len(lines))
 
+	// Keep only the lines that are a bare, valid TLD
 	for _, line := range lines {
 
 		// Normalize the TLD

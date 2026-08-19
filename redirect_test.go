@@ -33,3 +33,31 @@ func TestIsSafeRedirectURL(t *testing.T) {
 	// would strip the whitespace and execute the scheme).
 	require.False(t, IsSafeRedirectURL("\tjavascript:alert(1)"))
 }
+
+// TestNotSafeRedirectURL confirms the Not… twin is the exact inverse of its
+// Is… partner, per the package's paired-predicate convention.
+func TestNotSafeRedirectURL(t *testing.T) {
+
+	// Unsafe targets
+	require.True(t, NotSafeRedirectURL("javascript:alert(1)"))
+	require.True(t, NotSafeRedirectURL("data:text/html,<script>alert(1)</script>"))
+	require.True(t, NotSafeRedirectURL("//evil.com/path"))
+	require.True(t, NotSafeRedirectURL("\tjavascript:alert(1)"))
+
+	// Safe targets
+	require.False(t, NotSafeRedirectURL("/relative/path"))
+	require.False(t, NotSafeRedirectURL("https://example.com/path"))
+	require.False(t, NotSafeRedirectURL("http://example.com"))
+}
+
+// TestSafeURL_BlankSentinel documents the one place SafeURL and IsSafeRedirectURL
+// appear to disagree: SafeURL's "" doubles as its rejection sentinel, so a safe
+// value that re-serializes to "" cannot be told apart from a rejection. Both
+// spellings are harmless as an href.
+func TestSafeURL_BlankSentinel(t *testing.T) {
+
+	for _, blank := range []string{"", "//"} {
+		require.True(t, IsSafeRedirectURL(blank), "input: %q", blank)
+		require.Equal(t, "", SafeURL(blank), "input: %q", blank)
+	}
+}

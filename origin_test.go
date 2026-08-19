@@ -36,3 +36,27 @@ func TestIsSameOrigin(t *testing.T) {
 		require.Equal(t, !testCase.expected, NotSameOrigin(testCase.first, testCase.second), testCase.note)
 	}
 }
+
+// TestIsSameOrigin_DefaultPort covers RFC 6454: a URL that spells out the
+// scheme's default port is the same origin as one that omits it.
+func TestIsSameOrigin_DefaultPort(t *testing.T) {
+
+	// Explicit default port matches the implicit one, in either position
+	require.True(t, IsSameOrigin("https://example.com:443/a", "https://example.com/b"))
+	require.True(t, IsSameOrigin("https://example.com/a", "https://example.com:443/b"))
+	require.True(t, IsSameOrigin("http://example.com:80/a", "http://example.com/b"))
+	require.True(t, IsSameOrigin("https://example.com:443/a", "https://example.com:443/b"))
+
+	// A non-default port is still a different origin
+	require.False(t, IsSameOrigin("https://example.com:8443/a", "https://example.com/b"))
+
+	// The default port does not leak across schemes
+	require.False(t, IsSameOrigin("http://example.com:443/a", "http://example.com/b"))
+	require.False(t, IsSameOrigin("https://example.com:80/a", "https://example.com/b"))
+
+	// A scheme downgrade is never the same origin, default ports or not
+	require.False(t, IsSameOrigin("https://example.com:443/a", "http://example.com:80/b"))
+
+	// NotSameOrigin stays the exact inverse
+	require.False(t, NotSameOrigin("https://example.com:443/a", "https://example.com/b"))
+}

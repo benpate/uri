@@ -23,8 +23,8 @@ func TestHost_PortedFromDomainPackage(t *testing.T) {
 	do("https://server.com/some-path-name", "https://server.com")
 	do("https://server.com/many/path/names", "https://server.com")
 
-	// A port is part of the server address and is preserved
-	do("https://server.com:443", "https://server.com:443")
+	// A non-default port is part of the origin and is preserved
+	do("https://server.com:8443", "https://server.com:8443")
 
 	do("not-a-host", "")
 }
@@ -140,4 +140,48 @@ func FuzzHost(f *testing.F) {
 		// No path: the only slashes allowed are the two in "://".
 		require.Equal(t, 2, strings.Count(host, "/"), "result must not contain a path: %q", host)
 	})
+}
+
+// TestHost_DefaultPort covers the RFC 6454 §6.2 rule that an origin omits the
+// scheme's default port, so the two spellings of one origin agree.
+func TestHost_DefaultPort(t *testing.T) {
+
+	do := func(input string, expected string) {
+		require.Equal(t, expected, Host(input), "input: %q", input)
+	}
+
+	// The scheme's default port is dropped
+	do("https://server.com:443", "https://server.com")
+	do("https://server.com:443/path?q=1", "https://server.com")
+	do("http://server.com:80", "http://server.com")
+	do("HTTPS://Server.COM:443/x", "https://server.com")
+	do("https://[::1]:443", "https://[::1]")
+	do("http://[::1]:80", "http://[::1]")
+
+	// ...but ONLY for its own scheme; 443 is not http's default, nor 80 https'
+	do("http://server.com:443", "http://server.com:443")
+	do("https://server.com:80", "https://server.com:80")
+
+	// Any other port is part of the origin
+	do("https://server.com:8443", "https://server.com:8443")
+	do("http://localhost:8080", "http://localhost:8080")
+	do("http://[::1]:8080", "http://[::1]:8080")
+}
+
+// TestTrimDefaultPort covers the helper directly, including the schemes Host
+// never passes it, so the RFC 6454 rule is pinned independent of its caller.
+func TestTrimDefaultPort(t *testing.T) {
+
+	// Each scheme drops only its OWN default port
+	require.Equal(t, "server.com", trimDefaultPort(SchemeHTTP, "server.com:80"))
+	require.Equal(t, "server.com:443", trimDefaultPort(SchemeHTTP, "server.com:443"))
+	require.Equal(t, "server.com", trimDefaultPort(SchemeHTTPS, "server.com:443"))
+	require.Equal(t, "server.com:80", trimDefaultPort(SchemeHTTPS, "server.com:80"))
+
+	// An authority with no port is unchanged
+	require.Equal(t, "server.com", trimDefaultPort(SchemeHTTPS, "server.com"))
+
+	// An unknown scheme has no default port to drop
+	require.Equal(t, "server.com:443", trimDefaultPort("ftp", "server.com:443"))
+	require.Equal(t, "server.com:80", trimDefaultPort("", "server.com:80"))
 }

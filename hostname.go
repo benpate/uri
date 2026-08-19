@@ -67,6 +67,7 @@ func ValidateHostname(hostname string) error {
 	// Each part of the domain must be valid
 	domainSegments := strings.Split(ascii, ".")
 
+	// RULE: A public domain always has a name and a TLD
 	if len(domainSegments) < 2 {
 		return derp.Validation("Domain must contain at least two segments (e.g. 'example.com')")
 	}
@@ -89,5 +90,6 @@ func ValidateHostname(hostname string) error {
 		return derp.Validation("Invalid top-level domain")
 	}
 
+	// A perfectly cromulent hostname
 	return nil
 }

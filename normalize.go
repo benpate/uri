@@ -54,5 +54,6 @@ func NormalizeHost(value string) string {
 		value, _, _ = strings.Cut(value, ":")
 	}
 
+	// Stripped down to the bare host
 	return value
 }

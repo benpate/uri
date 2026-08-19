@@ -16,8 +16,18 @@ func TestProtocol(t *testing.T) {
 	do("http://example.com", "http://")
 	do("ftp://example.com", "ftp://")
 
-	// A bare hostname parses with an empty scheme, leaving only the suffix
-	do("example.com", "://")
+	// A scheme with no authority still has a protocol
+	do("file:///etc/passwd", "file://")
+
+	// A value with no scheme has no protocol -- NOT a bare "://" suffix
+	do("example.com", "")
+	do("/just/a/path", "")
+	do("", "")
+
+	// A scheme with an opaque payload never had a "://" at all, so it has no
+	// protocol -- NOT "example.com://" or "mailto://"
+	do("example.com:8080/path", "")
+	do("mailto:ben@example.com", "")
 
 	// An unparseable URL returns an empty string
 	do("https://x/%zz", "")

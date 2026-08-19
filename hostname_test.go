@@ -156,10 +156,12 @@ func FuzzValidateHostname(f *testing.F) {
 	})
 }
 
-// TestHostname_StripsQueryAndFragment covers a value with no path separator, where
-// the querystring/fragment used to survive into the "hostname" the caller got back.
+// TestHostname_StripsQueryAndFragment asserts that a querystring or fragment never
+// reaches the caller as part of the hostname.
 func TestHostname_StripsQueryAndFragment(t *testing.T) {
 
+	// A value with no path separator is the interesting shape: there is no "/" to
+	// cut at, so the "?" and "#" have to be handled on their own.
 	do := func(input string, expected string) {
 		require.Equal(t, expected, Hostname(input), "input: %q", input)
 	}
@@ -184,10 +186,11 @@ func TestHostname_StripsUserinfo(t *testing.T) {
 	do("user@example.com", "example.com")
 }
 
-// TestHostname_IPv6 covers bracketed IPv6 literals, which used to be truncated
-// to a single "[" by the naive colon split.
+// TestHostname_IPv6 asserts that a bracketed IPv6 literal survives as a whole address.
 func TestHostname_IPv6(t *testing.T) {
 
+	// Splitting on the first colon truncates these to "[", so the brackets have to
+	// be matched as a pair before any port is stripped.
 	do := func(input string, expected string) {
 		require.Equal(t, expected, Hostname(input), "input: %q", input)
 	}

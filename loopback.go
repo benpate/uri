@@ -35,6 +35,7 @@ func IsLoopback(domain string) bool {
 		return ip.IsLoopback()
 	}
 
+	// There's no place like someone else's home
 	return false
 }
 
