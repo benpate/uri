@@ -1,6 +1,8 @@
 package uri
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -63,4 +65,95 @@ func TestRefreshTLDs(t *testing.T) {
 	// common TLDs must remain valid afterward.
 	require.True(t, IsValidTLD("com"))
 	require.True(t, IsValidTLD("org"))
+}
+
+// TestRefreshTLDs_KeepsListOnHTTPError proves that an IANA outage cannot wipe
+// the TLD list. Without the status-code check, the body of the error page is
+// parsed as the new list and every public hostname stops validating.
+func TestRefreshTLDs_KeepsListOnHTTPError(t *testing.T) {
+
+	restoreTLDs(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("<html><body>503 Service Unavailable</body></html>"))
+	}))
+	defer server.Close()
+
+	refreshTLDsFrom(server.URL)
+
+	require.True(t, IsValidTLD("com"))
+	require.True(t, IsValidTLD("org"))
+	require.Nil(t, ValidateURL("https://example.com"))
+}
+
+// TestRefreshTLDs_KeepsListOnEmptyBody proves that a success response with no
+// usable TLDs (an empty body, or a truncated transfer) is rejected rather than
+// published as an empty list.
+func TestRefreshTLDs_KeepsListOnEmptyBody(t *testing.T) {
+
+	restoreTLDs(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	refreshTLDsFrom(server.URL)
+
+	require.True(t, IsValidTLD("com"))
+	require.Nil(t, ValidateURL("https://example.com"))
+}
+
+// TestRefreshTLDs_KeepsListOnNonTLDBody proves that a success response carrying
+// something other than a TLD list -- a captive portal or proxy interstitial --
+// is rejected, because it parses to zero valid TLDs.
+func TestRefreshTLDs_KeepsListOnNonTLDBody(t *testing.T) {
+
+	restoreTLDs(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("<!DOCTYPE html>\n<html>\n<head><title>Sign in</title></head>\n</html>\n"))
+	}))
+	defer server.Close()
+
+	refreshTLDsFrom(server.URL)
+
+	require.True(t, IsValidTLD("com"))
+	require.Nil(t, ValidateURL("https://example.com"))
+}
+
+// TestRefreshTLDs_PublishesGoodList confirms that a well-formed IANA response
+// still replaces the list, so the guards above do not block the happy path.
+func TestRefreshTLDs_PublishesGoodList(t *testing.T) {
+
+	restoreTLDs(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("# Version 2026, Last Updated ...\nCOM\nORG\nEXAMPLETLD\n"))
+	}))
+	defer server.Close()
+
+	refreshTLDsFrom(server.URL)
+
+	// The new list is live
+	require.True(t, IsValidTLD("exampletld"))
+
+	// ...and it fully replaced the old one
+	require.False(t, IsValidTLD("io"))
+}
+
+// TestRefreshTLDs_KeepsListOnConnectionFailure confirms the pre-existing
+// transport-error path still keeps the embedded list.
+func TestRefreshTLDs_KeepsListOnConnectionFailure(t *testing.T) {
+
+	restoreTLDs(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+	serverURL := server.URL
+	server.Close()
+
+	refreshTLDsFrom(serverURL)
+
+	require.True(t, IsValidTLD("com"))
 }

@@ -9,8 +9,8 @@ import (
 // NormalizeHost extracts the bare hostname from any URL-ish value, regardless
 // of its shape: a bare hostname, a "host:port", a full "scheme://" URL, a value
 // with userinfo ("user@host"), or a bracketed IPv6 literal ("[::1]:8080"). The
-// result is lower-cased. Unlike Hostname, the result MAY contain colons, because
-// an IPv6 address (e.g. "::1") is returned in its canonical, unbracketed form.
+// result is lower-cased. It MAY contain colons, because an IPv6 address (e.g.
+// "::1") is returned in its canonical, unbracketed form.
 func NormalizeHost(value string) string {
 
 	value = strings.TrimSpace(value)

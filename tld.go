@@ -15,6 +15,9 @@ import (
 * Examples include "com", "org", "net", and "io".
 ******************************************/
 
+// ianaTLDList is the canonical location of the IANA top-level-domain list.
+const ianaTLDList = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
+
 // IsValidTLD returns TRUE if the provided "top level domain" is found in the IANA list.
 func IsValidTLD(tld string) bool {
 
@@ -66,13 +69,20 @@ func ValidateTLD(tld string) error {
 
 // RefreshTLDs loads the most recent TLD list from the IANA website.
 func RefreshTLDs() {
+	refreshTLDsFrom(ianaTLDList)
+}
+
+// refreshTLDsFrom fetches a TLD list from the provided URL and publishes it,
+// keeping the existing list on any failure. The URL is a parameter so that
+// tests can exercise the failure paths against a local server.
+func refreshTLDsFrom(listURL string) {
 
 	const location = "uri.RefreshTLDs"
 
 	client := http.Client{Timeout: 30 * time.Second}
 
 	// Retrieve the IANA list from the IANA website.  If this fails, then we'll just keep using the existing list.
-	response, err := client.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
+	response, err := client.Get(listURL)
 
 	if err != nil {
 		derp.Report(derp.Wrap(err, location, "Unable to retrieve TLD list from IANA website"))
@@ -89,6 +99,14 @@ func RefreshTLDs() {
 		_ = response.Body.Close()
 	}()
 
+	// RULE: Only a success response carries a TLD list. Without this check, the body
+	// of an error page (an IANA outage, a CDN 503, a captive portal, a proxy
+	// interstitial) would be parsed as the new list.
+	if response.StatusCode != http.StatusOK {
+		derp.Report(derp.Internal(location, "IANA website returned a non-success status. Keeping existing TLD list.", response.StatusCode))
+		return
+	}
+
 	// Read the IANA data into a slice of bytes, capped to guard against an unbounded response
 	data, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 
@@ -97,6 +115,16 @@ func RefreshTLDs() {
 		return
 	}
 
-	// Import the TLDs into memory
-	importTLDs(data)
+	// RULE: Never replace a known-good list with an empty one. A success response whose
+	// body is empty or is not a TLD list at all (HTML, JSON, a truncated transfer) parses
+	// to zero TLDs, which would make every public hostname fail validation process-wide.
+	tlds := parseTLDs(data)
+
+	if len(tlds) == 0 {
+		derp.Report(derp.Internal(location, "IANA response contained no valid TLDs. Keeping existing TLD list."))
+		return
+	}
+
+	// Publish the new list with a single atomic swap, same as importTLDs
+	validTLDs.Store(&tlds)
 }

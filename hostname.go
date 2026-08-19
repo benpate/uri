@@ -7,21 +7,13 @@ import (
 	"golang.org/x/net/idna"
 )
 
-// Hostname returns ONLY the hostname, removing
-// the protocol, port, path, and querystring from a hostname
+// Hostname returns ONLY the hostname, removing the protocol, userinfo, port,
+// path, querystring, and fragment. The result is lower-cased.
 func Hostname(value string) string {
 
-	value = strings.ToLower(value)
-
-	// Remove the protocol (e.g. "http://", "https://", "ftp://"), if present
-	if _, after, found := strings.Cut(value, ProtocolSuffix); found {
-		value = after
-	}
-
-	value, _, _ = strings.Cut(value, "/") // Remove path values
-	value, _, _ = strings.Cut(value, ":") // Remove port values
-
-	return value
+	// NormalizeHost owns every shape this has to handle -- bare host, "host:port",
+	// a full URL, userinfo, and bracketed IPv6 -- so the two can never disagree.
+	return NormalizeHost(value)
 }
 
 // IsValidHostname returns TRUE if the provided value contains a valid hostname.

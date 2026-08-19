@@ -42,6 +42,7 @@ var seeds = []string{
 	strings.Repeat("a", 300) + ".com",
 }
 
+// addSeeds feeds the shared corpus into a fuzz target's seed set.
 func addSeeds(f *testing.F) {
 	for _, seed := range seeds {
 		f.Add(seed)
@@ -156,9 +157,7 @@ func FuzzPrependProtocolWellFormed(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 
-		result := PrependProtocol(input)
-
-		if result != "" {
+		if result := PrependProtocol(input); result != "" {
 			require.True(t, IsValidURL(result),
 				"non-empty PrependProtocol(%q) = %q must be a valid URL", input, result)
 		}

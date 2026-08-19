@@ -155,3 +155,52 @@ func FuzzValidateHostname(f *testing.F) {
 		require.Equal(t, IsValidHostname(input), !NotValidHostname(input))
 	})
 }
+
+// TestHostname_StripsQueryAndFragment covers a value with no path separator, where
+// the querystring/fragment used to survive into the "hostname" the caller got back.
+func TestHostname_StripsQueryAndFragment(t *testing.T) {
+
+	do := func(input string, expected string) {
+		require.Equal(t, expected, Hostname(input), "input: %q", input)
+	}
+
+	do("example.com?q=1", "example.com")
+	do("example.com#frag", "example.com")
+	do("https://example.com?q=1", "example.com")
+	do("https://example.com:8080?q=1#frag", "example.com")
+}
+
+// TestHostname_StripsUserinfo covers credentials in the authority. Handles and
+// referer checks are built from this result, so "evil.com@good.com" must not
+// come back as the hostname.
+func TestHostname_StripsUserinfo(t *testing.T) {
+
+	do := func(input string, expected string) {
+		require.Equal(t, expected, Hostname(input), "input: %q", input)
+	}
+
+	do("https://user@example.com/x", "example.com")
+	do("https://user:pass@example.com:8080/x", "example.com")
+	do("user@example.com", "example.com")
+}
+
+// TestHostname_IPv6 covers bracketed IPv6 literals, which used to be truncated
+// to a single "[" by the naive colon split.
+func TestHostname_IPv6(t *testing.T) {
+
+	do := func(input string, expected string) {
+		require.Equal(t, expected, Hostname(input), "input: %q", input)
+	}
+
+	do("[::1]:8080", "::1")
+	do("http://[::1]:8080/path", "::1")
+	do("https://[2001:db8::1]/x", "2001:db8::1")
+}
+
+// TestHostname_MatchesNormalizeHost pins the delegation: the two functions must
+// return the same value for every shape, so a caller cannot pick the wrong one.
+func TestHostname_MatchesNormalizeHost(t *testing.T) {
+	for _, seed := range seeds {
+		require.Equal(t, NormalizeHost(seed), Hostname(seed), "input: %q", seed)
+	}
+}
