@@ -207,3 +207,29 @@ func TestHostname_MatchesNormalizeHost(t *testing.T) {
 		require.Equal(t, NormalizeHost(seed), Hostname(seed), "input: %q", seed)
 	}
 }
+
+// TestHostname_SchemeOnly is the regression test for a scheme that never names a
+// host. "https://" declares an authority and then supplies an empty one, so there
+// is no hostname to return -- and the scheme itself must never be mistaken for one.
+func TestHostname_SchemeOnly(t *testing.T) {
+
+	do := func(input string, expected string) {
+		t.Helper()
+		require.Equal(t, expected, Hostname(input), "input: %q", input)
+	}
+
+	// A scheme with an empty authority has no host
+	do("https://", "")
+	do("http://", "")
+	do("HTTPS://", "")
+	do("ftp://", "")
+	do("s3://", "")
+
+	// ...and neither does one whose authority is empty but whose path is not
+	do("https:///", "")
+	do("https:///path", "")
+
+	// RULE: "host:port" has no "//", so it must keep working
+	do("localhost:8080", "localhost")
+	do("example.com:443", "example.com")
+}

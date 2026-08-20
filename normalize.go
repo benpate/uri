@@ -21,8 +21,20 @@ func NormalizeHost(value string) string {
 
 	// If the value parses as a URL *with a scheme*, trust net/url to pull out the
 	// host. This correctly handles userinfo and bracketed IPv6 literals.
-	if parsed, err := url.Parse(value); err == nil && parsed.Scheme != "" && parsed.Host != "" {
-		return strings.ToLower(parsed.Hostname())
+	if parsed, err := url.Parse(value); err == nil && parsed.Scheme != "" {
+
+		if parsed.Host != "" {
+			return strings.ToLower(parsed.Hostname())
+		}
+
+		// RULE: "scheme://" declares an authority, so an empty authority names no
+		// host at all. Returning early keeps the schemeless fallback below from
+		// mistaking the scheme ("https://" -> "https") for a hostname. The prefix is
+		// measured past the scheme so that "localhost:8080/x://y" -- which has no
+		// authority marker of its own -- still falls through to the fallback.
+		if strings.HasPrefix(value[len(parsed.Scheme):], ProtocolSuffix) {
+			return ""
+		}
 	}
 
 	// No scheme: strip any path, query, or fragment that follows the authority.
