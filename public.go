@@ -2,9 +2,8 @@ package uri
 
 import "net"
 
-// blockedRanges holds special-use IP ranges that are NOT publicly-routable
-// destinations but that net.IP's built-in predicates do not already detect.
-// Sourced from the IANA IPv4 and IPv6 Special-Purpose Address Registries.
+// blockedRanges holds the IANA special-use IP ranges that are not publicly routable
+// and that net.IP's own predicates do not already detect.
 var blockedRanges = mustParseCIDRs(
 	// ----- IPv4 -----
 	"0.0.0.0/8",       // "This network" (RFC 1122); only 0.0.0.0/32 is "unspecified"
@@ -27,13 +26,8 @@ var blockedRanges = mustParseCIDRs(
 	"3fff::/20",      // Documentation (RFC 9637)
 )
 
-// IsPublicIP reports whether ip is a globally-routable public address that is
-// safe to connect to. It returns FALSE for loopback, private, link-local
-// (including the 169.254.169.254 cloud-metadata endpoint), unspecified,
-// multicast, broadcast, carrier-grade NAT, and other special-use ranges.
-//
-// Use this to defend against SSRF: validate the resolved IP at connection time
-// (e.g. in a net.Dialer Control hook) before connecting to a user-supplied host.
+// IsPublicIP reports whether ip is a globally routable public address that is safe to
+// connect to, rejecting loopback, private, link-local, multicast, and special-use ranges.
 func IsPublicIP(ip net.IP) bool {
 
 	if ip == nil {

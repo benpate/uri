@@ -17,8 +17,8 @@ func NotValidURL(uri string) bool {
 	return !IsValidURL(uri)
 }
 
-// ValidateURL checks to see that a URL properly formatted,
-// has a valid hostname, and uses http or https as the scheme.
+// ValidateURL returns a validation error unless the URL parses, has a valid hostname,
+// and uses http or https as the scheme.
 func ValidateURL(uri string) error {
 
 	_, err := ParseURL(uri)

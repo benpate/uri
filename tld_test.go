@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestTLD verifies that IsValidTLD accepts listed TLDs and rejects unknown or malformed labels
 func TestTLD(t *testing.T) {
 
 	require.True(t, IsValidTLD("com"))
@@ -27,9 +28,9 @@ func TestTLD(t *testing.T) {
 	require.False(t, IsValidTLD(".com"))
 }
 
+// TestNotValidTLD verifies that NotValidTLD is the inverse of IsValidTLD
 func TestNotValidTLD(t *testing.T) {
 
-	// NotValidTLD is the exact inverse of IsValidTLD
 	require.False(t, NotValidTLD("com"))
 	require.False(t, NotValidTLD("org"))
 
@@ -38,6 +39,7 @@ func TestNotValidTLD(t *testing.T) {
 	require.True(t, NotValidTLD("123"))
 }
 
+// TestValidateTLD verifies that ValidateTLD returns an error for an empty or unlisted TLD
 func TestValidateTLD(t *testing.T) {
 
 	// Valid TLDs return no error
@@ -53,11 +55,7 @@ func TestValidateTLD(t *testing.T) {
 	require.NotNil(t, ValidateTLD("nope"))
 }
 
-// TestRefreshTLDs exercises the happy path of fetching the live IANA list.
-//
-// NOTE: RefreshTLDs's HTTP-error and read-error branches are not covered. They
-// depend on network failures that can't be reliably reproduced here, and both
-// merely report the error and keep the existing list, so they are left untested.
+// TestRefreshTLDs verifies that common TLDs stay valid after a refresh from the live IANA list
 func TestRefreshTLDs(t *testing.T) {
 	RefreshTLDs()
 
@@ -67,9 +65,7 @@ func TestRefreshTLDs(t *testing.T) {
 	require.True(t, IsValidTLD("org"))
 }
 
-// TestRefreshTLDs_KeepsListOnHTTPError proves that an IANA outage cannot wipe
-// the TLD list. Without the status-code check, the body of the error page is
-// parsed as the new list and every public hostname stops validating.
+// TestRefreshTLDs_KeepsListOnHTTPError verifies that an error status from IANA leaves the TLD list intact
 func TestRefreshTLDs_KeepsListOnHTTPError(t *testing.T) {
 
 	restoreTLDs(t)
@@ -87,9 +83,8 @@ func TestRefreshTLDs_KeepsListOnHTTPError(t *testing.T) {
 	require.Nil(t, ValidateURL("https://example.com"))
 }
 
-// TestRefreshTLDs_KeepsListOnEmptyBody proves that a success response with no
-// usable TLDs (an empty body, or a truncated transfer) is rejected rather than
-// published as an empty list.
+// TestRefreshTLDs_KeepsListOnEmptyBody verifies that a success response with an empty body
+// leaves the TLD list intact
 func TestRefreshTLDs_KeepsListOnEmptyBody(t *testing.T) {
 
 	restoreTLDs(t)
@@ -105,9 +100,8 @@ func TestRefreshTLDs_KeepsListOnEmptyBody(t *testing.T) {
 	require.Nil(t, ValidateURL("https://example.com"))
 }
 
-// TestRefreshTLDs_KeepsListOnNonTLDBody proves that a success response carrying
-// something other than a TLD list -- a captive portal or proxy interstitial --
-// is rejected, because it parses to zero valid TLDs.
+// TestRefreshTLDs_KeepsListOnNonTLDBody verifies that a success response with no valid TLDs,
+// such as a captive-portal page, leaves the TLD list intact
 func TestRefreshTLDs_KeepsListOnNonTLDBody(t *testing.T) {
 
 	restoreTLDs(t)
@@ -123,8 +117,7 @@ func TestRefreshTLDs_KeepsListOnNonTLDBody(t *testing.T) {
 	require.Nil(t, ValidateURL("https://example.com"))
 }
 
-// TestRefreshTLDs_PublishesGoodList confirms that a well-formed IANA response
-// still replaces the list, so the guards above do not block the happy path.
+// TestRefreshTLDs_PublishesGoodList verifies that a well-formed IANA response replaces the TLD list
 func TestRefreshTLDs_PublishesGoodList(t *testing.T) {
 
 	restoreTLDs(t)
@@ -143,8 +136,7 @@ func TestRefreshTLDs_PublishesGoodList(t *testing.T) {
 	require.False(t, IsValidTLD("io"))
 }
 
-// TestRefreshTLDs_KeepsListOnConnectionFailure confirms the pre-existing
-// transport-error path still keeps the embedded list.
+// TestRefreshTLDs_KeepsListOnConnectionFailure verifies that a transport error leaves the TLD list intact
 func TestRefreshTLDs_KeepsListOnConnectionFailure(t *testing.T) {
 
 	restoreTLDs(t)

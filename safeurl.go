@@ -16,9 +16,8 @@ func SafeURL(raw string) string {
 		return ""
 	}
 
-	// Re-serialize to percent-encode the characters that would otherwise break out of an
-	// attribute. url.URL.String covers ", <, >, space, and backtick but leaves the single
-	// quote intact, so encode that too -- a consumer that interpolates into src="..." or
-	// onclick="f('...')" without escaping of its own is then still safe.
+	// Re-serialize to percent-encode the characters that would break out of an attribute.
+	// url.URL.String covers ", <, >, space, and backtick but not the single quote, so encode
+	// that too, for a consumer that interpolates into onclick="f('...')" unescaped.
 	return strings.ReplaceAll(parsed.String(), "'", "%27")
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIsPublicIP verifies that IsPublicIP accepts public addresses and rejects special-use ranges,
+// and that NotPublicIP is its inverse
 func TestIsPublicIP(t *testing.T) {
 
 	run := func(value string, expected bool) {
@@ -32,7 +34,7 @@ func TestIsPublicIP(t *testing.T) {
 
 	// --- loopback (full 127.0.0.0/8, not just 127.0.0.1) ---
 	run("127.0.0.1", false)
-	run("127.0.0.2", false) // the gap in uri.IsLoopback
+	run("127.0.0.2", false) // rest of 127.0.0.0/8
 	run("127.255.255.255", false)
 	run("::1", false)
 
@@ -86,11 +88,14 @@ func TestIsPublicIP(t *testing.T) {
 	run("::ffff:8.8.8.8", true)
 }
 
+// TestIsPublicIP_Nil verifies that a nil IP is never public
 func TestIsPublicIP_Nil(t *testing.T) {
 	require.False(t, IsPublicIP(nil))
 	require.True(t, NotPublicIP(nil))
 }
 
+// TestIsPublicIPAddress verifies that IsPublicIPAddress classifies IP strings, rejects unparseable
+// ones, and that NotPublicIPAddress is its inverse
 func TestIsPublicIPAddress(t *testing.T) {
 
 	require.True(t, IsPublicIPAddress("8.8.8.8"))
@@ -105,7 +110,7 @@ func TestIsPublicIPAddress(t *testing.T) {
 	require.False(t, IsPublicIPAddress("not-an-ip"))
 	require.False(t, IsPublicIPAddress("example.com"))
 
-	// NotPublicIPAddress is the exact inverse.
+	// NotPublicIPAddress is the inverse.
 	require.True(t, NotPublicIPAddress("127.0.0.1"))
 	require.False(t, NotPublicIPAddress("8.8.8.8"))
 }

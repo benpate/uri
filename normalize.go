@@ -6,11 +6,8 @@ import (
 	"strings"
 )
 
-// NormalizeHost extracts the bare hostname from any URL-ish value, regardless
-// of its shape: a bare hostname, a "host:port", a full "scheme://" URL, a value
-// with userinfo ("user@host"), or a bracketed IPv6 literal ("[::1]:8080"). The
-// result is lower-cased. It MAY contain colons, because an IPv6 address (e.g.
-// "::1") is returned in its canonical, unbracketed form.
+// NormalizeHost returns the lower-cased bare hostname of any URL-ish value: a host, "host:port",
+// a full URL, userinfo, or bracketed IPv6. An IPv6 result is unbracketed, so it may hold colons.
 func NormalizeHost(value string) string {
 
 	value = strings.TrimSpace(value)
@@ -27,11 +24,9 @@ func NormalizeHost(value string) string {
 			return strings.ToLower(parsed.Hostname())
 		}
 
-		// RULE: "scheme://" declares an authority, so an empty authority names no
-		// host at all. Returning early keeps the schemeless fallback below from
-		// mistaking the scheme ("https://" -> "https") for a hostname. The prefix is
-		// measured past the scheme so that "localhost:8080/x://y" -- which has no
-		// authority marker of its own -- still falls through to the fallback.
+		// RULE: "scheme://" with an empty authority names no host, so stop here rather than
+		// let the fallback read the scheme ("https://" -> "https") as one. Measuring past the
+		// scheme keeps "localhost:8080/x://y", which has no authority marker, on the fallback.
 		if strings.HasPrefix(value[len(parsed.Scheme):], ProtocolSuffix) {
 			return ""
 		}

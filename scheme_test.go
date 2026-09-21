@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestScheme verifies that Scheme returns a URL's scheme without the "://" suffix, and "" when
+// the URL has no scheme or cannot be parsed
 func TestScheme(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -24,6 +26,7 @@ func TestScheme(t *testing.T) {
 	do("https://x/%zz", "")
 }
 
+// TestIsSchemeValid verifies that only the lowercase "http" and "https" schemes are valid
 func TestIsSchemeValid(t *testing.T) {
 
 	require.True(t, IsSchemeValid("http"))
@@ -35,9 +38,9 @@ func TestIsSchemeValid(t *testing.T) {
 	require.False(t, IsSchemeValid("https://")) // scheme does not include the suffix
 }
 
+// TestNotSchemeValid verifies that NotSchemeValid is the inverse of IsSchemeValid
 func TestNotSchemeValid(t *testing.T) {
 
-	// NotSchemeValid is the exact inverse of IsSchemeValid
 	require.False(t, NotSchemeValid("http"))
 	require.False(t, NotSchemeValid("https"))
 
@@ -45,6 +48,7 @@ func TestNotSchemeValid(t *testing.T) {
 	require.True(t, NotSchemeValid("ftp"))
 }
 
+// TestGuessSchemeForHostname verifies that local hostnames get SchemeHTTP and all others get SchemeHTTPS
 func TestGuessSchemeForHostname(t *testing.T) {
 
 	// Local hostnames always use plain HTTP

@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIsLoopback verifies that IsLoopback matches localhost names, the 127/8 block,
+// and IPv6 loopback forms, and nothing else
 func TestIsLoopback(t *testing.T) {
 
 	// The "localhost" hostname is loopback, as is the whole RFC 6761 ".localhost"
@@ -41,6 +43,7 @@ func TestIsLoopback(t *testing.T) {
 	require.False(t, IsLoopback("otherserver.com"))
 }
 
+// TestNotLoopback verifies that NotLoopback is the inverse of IsLoopback
 func TestNotLoopback(t *testing.T) {
 
 	// NotLoopback is the exact inverse of IsLoopback

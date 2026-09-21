@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIsLocalURL verifies that IsLocalURL detects loopback, private, and .local hosts,
+// and rejects public or unparseable URLs
 func TestIsLocalURL(t *testing.T) {
 
 	require.True(t, IsLocalURL("http://127.0.0.1/john"))
@@ -24,6 +26,7 @@ func TestIsLocalURL(t *testing.T) {
 	require.False(t, IsLocalURL("not a url"))
 }
 
+// TestNotLocalURL verifies that NotLocalURL is the inverse of IsLocalURL
 func TestNotLocalURL(t *testing.T) {
 
 	// NotLocalURL is the exact inverse of IsLocalURL
@@ -34,6 +37,8 @@ func TestNotLocalURL(t *testing.T) {
 	require.True(t, NotLocalURL("ftp://localhost"))
 }
 
+// TestIsLocalHostname verifies that IsLocalHostname and NotLocalHostname classify loopback,
+// private, and .local hosts as local, and a public domain as not
 func TestIsLocalHostname(t *testing.T) {
 
 	require.True(t, IsLocalHostname("localhost"))
@@ -49,6 +54,8 @@ func TestIsLocalHostname(t *testing.T) {
 	require.True(t, NotLocalHostname("connor.com"))
 }
 
+// TestIsLocalHostname_EdgeCases verifies case-insensitivity, the empty string, and the
+// boundaries of the 172.16/12 and 192.168 private blocks
 func TestIsLocalHostname_EdgeCases(t *testing.T) {
 
 	// The check is case-insensitive
@@ -81,12 +88,12 @@ func TestIsLocalHostname_EdgeCases(t *testing.T) {
 	require.False(t, IsLocalHostname("8.8.8.8"))
 }
 
+// TestIsLocalHostname_ShapeTolerance verifies that IsLocalHostname finds a local host
+// wrapped in a scheme, port, path, userinfo, or brackets
 func TestIsLocalHostname_ShapeTolerance(t *testing.T) {
 
-	// IsLocalHostname normalizes its input, so any URL-ish shape that resolves to
-	// a local host is detected — not just the bare hostname. This is the defense
-	// that prevents a "scheme://" or ":port" wrapper from slipping a local target
-	// past an SSRF-style check.
+	// IsLocalHostname normalizes its input, so a "scheme://" or ":port" wrapper
+	// cannot slip a local target past an SSRF check.
 	require.True(t, IsLocalHostname("https://localhost/path"))
 	require.True(t, IsLocalHostname("http://localhost:3000/x?y=1"))
 	require.True(t, IsLocalHostname("localhost:3000"))
@@ -102,6 +109,8 @@ func TestIsLocalHostname_ShapeTolerance(t *testing.T) {
 	require.False(t, IsLocalHostname("https://user@example.com"))
 }
 
+// TestIsLocalHostname_IPv6 verifies that IPv6 loopback, unique-local, link-local, and
+// unspecified addresses are local, and a public IPv6 address is not
 func TestIsLocalHostname_IPv6(t *testing.T) {
 
 	// ::1 is the IPv6 loopback (handled as a loopback address)
@@ -123,12 +132,8 @@ func TestIsLocalHostname_IPv6(t *testing.T) {
 	require.True(t, IsLocalHostname("::"))
 }
 
-// These addresses are unreachable from outside the host but are missed by the
-// loopback / .local / RFC-1918 string checks. They must still be treated as local
-// so that the proxy SSRF filter rejects them (most notably the cloud metadata
-// endpoint at 169.254.169.254). DNS names that RESOLVE to these ranges are NOT
-// caught here (no resolution happens) — that is handled at dial time in the
-// `remote` package's guarded transport.
+// TestIsLocalHostname_SSRFRanges verifies that link-local (including cloud metadata), unspecified,
+// 127/8, and IPv4-mapped loopback and metadata addresses are local
 func TestIsLocalHostname_SSRFRanges(t *testing.T) {
 
 	// Link-local (169.254.0.0/16), including the cloud metadata endpoint
@@ -155,10 +160,8 @@ func TestIsLocalHostname_SSRFRanges(t *testing.T) {
 	require.True(t, IsLocalHostname("::ffff:169.254.169.254"))
 }
 
-// IsLocalHostname delegates its IP case to NotPublicIP, so every special-use
-// range that IsPublicIP blocks is treated as local — not just the loopback /
-// private / link-local ranges. This closes the SSRF gap where CGNAT, NAT64,
-// documentation, benchmark, and reserved addresses were neither public nor local.
+// TestIsLocalHostname_NonPublicRanges verifies that the special-use ranges IsPublicIP blocks
+// (CGNAT, NAT64, documentation, benchmark, reserved) are local
 func TestIsLocalHostname_NonPublicRanges(t *testing.T) {
 
 	require.True(t, IsLocalHostname("100.64.0.1"))       // CGNAT (RFC 6598)
@@ -175,7 +178,8 @@ func TestIsLocalHostname_NonPublicRanges(t *testing.T) {
 	require.False(t, IsLocalHostname("2606:4700::1111"))
 }
 
-// Non-IP hostname strings that resolve to the local machine or local network.
+// TestIsLocalHostname_LocalStrings verifies that non-IP names for the local machine or
+// network are local, and that look-alike public names are not
 func TestIsLocalHostname_LocalStrings(t *testing.T) {
 
 	// RFC 6761: "localhost" and the entire ".localhost" TLD are loopback

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestPath verifies that Path returns the root-absolute path of a URL, without its query
 func TestPath(t *testing.T) {
 	require.Equal(t, "/", Path("https://localhost"))
 	require.Equal(t, "/", Path("https://localhost/"))
@@ -14,6 +15,7 @@ func TestPath(t *testing.T) {
 	require.Equal(t, "/path", Path("https://localhost/path?and=query"))
 }
 
+// TestPath_EdgeCases verifies Path on a non-http(s) scheme and on an unparseable URL
 func TestPath_EdgeCases(t *testing.T) {
 
 	// A path on a non-http(s) scheme is still extracted
@@ -23,6 +25,7 @@ func TestPath_EdgeCases(t *testing.T) {
 	require.Equal(t, "/", Path("https://localhost/%zz"))
 }
 
+// TestPathAndQuery verifies that PathAndQuery returns the root-absolute path of a URL plus its query
 func TestPathAndQuery(t *testing.T) {
 	require.Equal(t, "/", PathAndQuery("http://localhost"))
 	require.Equal(t, "/", PathAndQuery("http://localhost/"))
@@ -30,6 +33,7 @@ func TestPathAndQuery(t *testing.T) {
 	require.Equal(t, "/path?and=query", PathAndQuery("http://localhost/path?and=query"))
 }
 
+// TestPathAndQuery_EdgeCases verifies PathAndQuery on a query with an empty path and on an unparseable URL
 func TestPathAndQuery_EdgeCases(t *testing.T) {
 
 	// Query is preserved even when the path is empty (defaults to "/")

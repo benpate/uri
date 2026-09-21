@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestSafeURL verifies that SafeURL passes safe URLs through and returns "" for unsafe ones
 func TestSafeURL(t *testing.T) {
 
 	// Legitimate absolute http(s) URLs pass through intact (an off-site host is allowed).
@@ -30,9 +31,8 @@ func TestSafeURL(t *testing.T) {
 	require.Equal(t, "", SafeURL("\tjavascript:alert(1)"))
 }
 
-// TestSafeURL_Neutralizes proves the returned value cannot break out of an HTML attribute of any
-// quote style. Every character that could escape src="..." or onclick="f('...')" must come back
-// percent-encoded, so the strings below contain no raw ", ', <, >, backtick, or space.
+// TestSafeURL_Neutralizes verifies that SafeURL percent-encodes every character that could break
+// out of an HTML attribute of any quote style
 func TestSafeURL_Neutralizes(t *testing.T) {
 
 	// Double-quote breakout (src="...") — the icon attack.

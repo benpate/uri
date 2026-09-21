@@ -20,6 +20,8 @@
 
 - **Paired `Is…` / `Not…` predicates are intentional, not redundant.** `NotLocalURL`, `NotPublicIP`, `NotValidTLD`, etc. exist so callers read naturally at the call site (`if uri.NotPublicIP(ip)`). Each `Not…` is a one-line negation of its `Is…` twin — keep them in sync.
 
+- **Every rejection from `ParseURL`, `ValidateURL`, and `ValidateHostname` is a 422.** `derp.Wrap` inherits the inner error's code, and a non-derp error (`*url.Error`, an `idna` error) reads as 500, so a bare wrap would answer bad user input with a server error. Each wrap of a third-party error passes `derp.WithCode(http.StatusUnprocessableEntity)`; `TestValidateURL_RejectionsAreValidationErrors` pins it.
+
 - **`Hostname` lower-cases and strips, it does not validate.** It will happily return garbage from garbage. Run the result through `ValidateHostname` if the input is untrusted.
 
 ## A redirect target is judged the way a BROWSER parses it, not the way `net/url` does
@@ -28,6 +30,7 @@
 
 - **A leading run of slashes opens an AUTHORITY, and a backslash is a slash.** For an http(s) URL a browser reads `\` as `/`, and it enters authority parsing as soon as the first two characters are any mix of the two, ignoring every slash after that. So `/\evil.com`, `\\evil.com`, `\/evil.com`, `/\/evil.com` and `///evil.com` all resolve to `https://evil.com`, while `net/url` reports an empty `Host` and a same-site path for every one of them. `hasAuthorityPrefix` therefore tests the first two characters and nothing else: a backslash later in the path (`/foo/\bar`) stays on this host, and rejecting it would break ordinary paths.
 - **Leading whitespace is stripped before parsing.** A browser removes C0 controls and spaces from both ends first, so `" //evil.com"` is off-site to a browser and a harmless relative path to `net/url`. `parseSafeURL` trims the same set before it parses. Interior tabs and newlines, which a browser also removes, still fail closed the old way, because `url.Parse` rejects the control byte.
+- **A browser deletes tabs and newlines from ANYWHERE in a URL, and `Path` works on the DECODED path.** So `/%09/evil.com` reaches `safeLocalPath` as `/\t/evil.com`, gets past the leading-slash collapse, and then reads as `//evil.com`. Emissary puts the sign-in `next` through `PathAndQuery` into `Hx-Redirect`, so this is a live post-login open redirect unless `safeLocalPath` deletes `tabOrNewline` before it collapses. The fuzz oracle `isProtocolRelative` deletes the same set; without it the fuzzer cannot see this class at all.
 
 `authoritySlashes` is the single copy of that character set, shared with `safeLocalPath` in path.go, which collapses exactly the same run for `PathAndQuery`. Keep both on the constant. `TestIsSafeRedirectURL_AuthorityPrefixBypass` pins every spelling above, and its twin pins the paths that must stay safe.
 
@@ -41,9 +44,13 @@ What did NOT change: an absolute off-site `http(s)` URL is still safe. All of th
 
 ## Known defects, reproduced and not yet fixed
 
-- **`Path` and `PathAndQuery` return the DECODED path, so a percent-encoded delimiter comes back live.** Both use `parsedURL.Path` where they want `EscapedPath()`. `PathAndQuery("/foo%3Fbar")` returns `/foo?bar`, turning an encoded `?` into a real query delimiter, and `%23` into a fragment; raw spaces and raw UTF-8 come through too, in a value the doc comment calls suitable for an HTTP `Location` header. Blast radius of the fix is one pinned test. This is **not** an open redirect — the leading-slash collapse in `safeLocalPath` holds either way.
+- **`Path` and `PathAndQuery` return the DECODED path, so a percent-encoded delimiter comes back live.** Both use `parsedURL.Path` where they want `EscapedPath()`. `PathAndQuery("/foo%3Fbar")` returns `/foo?bar`, turning an encoded `?` into a real query delimiter, and `%23` into a fragment; raw spaces and raw UTF-8 come through too, in a value the doc comment calls suitable for an HTTP `Location` header. Blast radius of the fix is one pinned test. The decoded tab or newline that made this an open redirect is deleted in `safeLocalPath` (see above); what remains is a changed meaning, never an off-site hop.
 
 - **`ValidateHostname` accepts a full URL when, and only when, it names a local host.** `IsValidHostname("http://localhost/../etc")` is TRUE while `IsValidHostname("https://example.com")` is FALSE, because the `IsLocalHostname` early-out normalizes a URL down to a bare host and the public-domain path below it does not. Acceptance therefore depends on which half you land in, and the local half is the security-sensitive one. `ParseURL` is unaffected — it passes an already-bare `parsed.Hostname()`.
+
+- **`ValidateHostname` accepts control and invisible characters.** It converts with `idna.ToASCII`, the Punycode profile, which maps and validates nothing, so `"\u0080.com"`, `"a\u200d.com"` (a zero-width joiner), and a soft hyphen all pass. `idna.Lookup.ToASCII` rejects them, but also changes what some inputs normalize to.
+
+- **`PrependProtocol` never guesses http, and returns `""` for `host:port`.** It guesses from `url.Parse(uri).Hostname()`, which is always empty for the schemeless input it exists to handle, so `localhost` and `10.0.0.1` get https; and `localhost:8080` parses as the scheme `localhost`. `TestPrependProtocol` pins both, and the README promises http for local hosts. Emissary calls it on `request.Host` and the configured hostname.
 
 - **`Scheme` and `Protocol` disagree on opaque URLs.** `Scheme("http:8080")` is `"http"` but `Protocol("http:8080")` is `""`. `Protocol` has an explicit `Opaque != ""` rule and `Scheme` has none, though the README presents them as a pair.
 

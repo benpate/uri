@@ -8,9 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// restoreTLDs snapshots the global TLD map and registers a cleanup that
-// restores it, so tests that mutate the map via importTLDs don't leak state
-// into other tests.
+// restoreTLDs snapshots the global TLD map and registers a cleanup that restores it
+// when the test ends
 func restoreTLDs(t *testing.T) {
 	t.Helper()
 	original := validTLDs.Load()
@@ -19,10 +18,8 @@ func restoreTLDs(t *testing.T) {
 	})
 }
 
-// NOTE: init()'s panic branch (a failed read of the embedded _iana.txt) is not
-// covered. The file is embedded at compile time, so the read cannot fail at
-// runtime; the branch is unreachable and left untested.
-
+// TestImportTLDs verifies that importTLDs skips comments, lower-cases each TLD,
+// and replaces the previous list entirely
 func TestImportTLDs(t *testing.T) {
 
 	restoreTLDs(t)
@@ -42,6 +39,8 @@ func TestImportTLDs(t *testing.T) {
 	require.False(t, IsValidTLD("io"))
 }
 
+// TestImportTLDs_SkipsInvalidLines verifies that importTLDs keeps valid single labels
+// and skips blank lines, comments, and malformed labels
 func TestImportTLDs_SkipsInvalidLines(t *testing.T) {
 
 	restoreTLDs(t)
@@ -60,6 +59,7 @@ func TestImportTLDs_SkipsInvalidLines(t *testing.T) {
 	require.False(t, IsValidTLD("also.bad")) // contains a dot, not a single segment
 }
 
+// TestImportTLDs_Empty verifies that importing an empty payload leaves no valid TLDs
 func TestImportTLDs_Empty(t *testing.T) {
 
 	restoreTLDs(t)
@@ -69,9 +69,8 @@ func TestImportTLDs_Empty(t *testing.T) {
 	require.False(t, IsValidTLD("com"))
 }
 
-// TestImportTLDs_ConcurrentReadWrite republishes the TLD map (the same atomic
-// swap RefreshTLDs performs) while many goroutines read it. Run under -race,
-// this guards against the data race that a plain map assignment would cause.
+// TestImportTLDs_ConcurrentReadWrite republishes the TLD map while many goroutines read it,
+// so that -race reports any unsynchronized swap
 func TestImportTLDs_ConcurrentReadWrite(t *testing.T) {
 
 	restoreTLDs(t)

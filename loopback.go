@@ -5,10 +5,8 @@ import (
 	"strings"
 )
 
-// IsLoopback returns TRUE if the provided domain is a loopback address. This
-// matches loopback hostnames ("localhost", the RFC 6761 ".localhost" TLD, and
-// common /etc/hosts aliases) as well as any loopback IP, which covers the whole
-// 127.0.0.0/8 block, ::1, and aliases such as "::ffff:127.0.0.1".
+// IsLoopback returns TRUE if the provided domain is a loopback hostname (including the
+// RFC 6761 ".localhost" TLD and common /etc/hosts aliases) or any loopback IP address.
 func IsLoopback(domain string) bool {
 
 	// Drop a single trailing dot so the FQDN root form ("localhost.") matches.

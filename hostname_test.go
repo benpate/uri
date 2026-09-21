@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIsValidHostname verifies that IsValidHostname accepts local names, IPs, and real TLDs,
+// and rejects malformed labels and partial or unknown TLDs
 func TestIsValidHostname(t *testing.T) {
 
 	require.True(t, IsValidHostname("localhost"))
@@ -39,6 +41,8 @@ func TestIsValidHostname(t *testing.T) {
 	require.True(t, IsValidHostname("something.social"))
 }
 
+// Test_Hostname_PortedFromDomainPackage verifies that Hostname returns the bare host
+// of a bare hostname or an http(s) URL
 func Test_Hostname_PortedFromDomainPackage(t *testing.T) {
 	require.Equal(t, "localhost", Hostname("localhost"))
 	require.Equal(t, "veronica.local", Hostname("veronica.local"))
@@ -53,6 +57,8 @@ func Test_Hostname_PortedFromDomainPackage(t *testing.T) {
 	require.Equal(t, "localhost", Hostname("http://localhost/path?and=query"))
 }
 
+// TestHostname_EdgeCases verifies that Hostname lower-cases its result and strips the port
+// and any scheme, not just http(s)
 func TestHostname_EdgeCases(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -76,6 +82,8 @@ func TestHostname_EdgeCases(t *testing.T) {
 	do("ircs://chat.example.org/room", "chat.example.org")
 }
 
+// TestIsValidHostname_BoundaryLengths verifies the RFC 1035 limits of 63 characters per label
+// and 253 per domain
 func TestIsValidHostname_BoundaryLengths(t *testing.T) {
 
 	// A label of exactly 63 characters is valid; 64 is too long (RFC 1035)
@@ -86,6 +94,7 @@ func TestIsValidHostname_BoundaryLengths(t *testing.T) {
 	require.False(t, IsValidHostname(strings.Repeat("a.", 130)+"com"))
 }
 
+// TestIsValidHostname_Punycode verifies that IsValidHostname accepts Unicode domains
 func TestIsValidHostname_Punycode(t *testing.T) {
 
 	// Unicode domains are converted to ASCII via punycode before validation
@@ -93,6 +102,7 @@ func TestIsValidHostname_Punycode(t *testing.T) {
 	require.True(t, IsValidHostname("例え.jp"))
 }
 
+// TestNotValidHostname verifies that NotValidHostname is the inverse of IsValidHostname
 func TestNotValidHostname(t *testing.T) {
 
 	// NotValidHostname is the exact inverse of IsValidHostname
@@ -103,6 +113,8 @@ func TestNotValidHostname(t *testing.T) {
 	require.True(t, NotValidHostname("example.invalidtld"))
 }
 
+// TestValidateHostname verifies that ValidateHostname returns nil for valid hostnames
+// and an error for each failure mode
 func TestValidateHostname(t *testing.T) {
 
 	// Valid hostnames return no error
@@ -110,7 +122,8 @@ func TestValidateHostname(t *testing.T) {
 	require.Nil(t, ValidateHostname("localhost"))
 	require.Nil(t, ValidateHostname("127.0.0.1"))
 
-	// Each distinct failure mode returns a (non-nil) validation error
+	// Each distinct failure mode returns a (non-nil) validation error. The idna.ToASCII
+	// error branch is not covered: it is defensive, and hard to reach reliably.
 	require.NotNil(t, ValidateHostname(""))                             // empty
 	require.NotNil(t, ValidateHostname("com"))                          // single segment
 	require.NotNil(t, ValidateHostname("example..com"))                 // empty segment
@@ -118,10 +131,6 @@ func TestValidateHostname(t *testing.T) {
 	require.NotNil(t, ValidateHostname(strings.Repeat("a", 64)+".com")) // segment too long
 	require.NotNil(t, ValidateHostname("example.invalidtld"))           // bad TLD
 }
-
-// NOTE: ValidateHostname's idna.ToASCII error branch is not covered. Inputs
-// that reach it (e.g. malformed punycode) are hard to construct reliably and
-// the branch is purely defensive, so it is left untested.
 
 // FuzzHostname verifies that Hostname never panics and that its output never
 // contains a path separator, a port separator, or upper-case characters.
@@ -172,11 +181,11 @@ func TestHostname_StripsQueryAndFragment(t *testing.T) {
 	do("https://example.com:8080?q=1#frag", "example.com")
 }
 
-// TestHostname_StripsUserinfo covers credentials in the authority. Handles and
-// referer checks are built from this result, so "evil.com@good.com" must not
-// come back as the hostname.
+// TestHostname_StripsUserinfo verifies that Hostname drops credentials from the authority
 func TestHostname_StripsUserinfo(t *testing.T) {
 
+	// Handles and referer checks are built from this result, so "evil.com@good.com"
+	// must never come back as the hostname.
 	do := func(input string, expected string) {
 		require.Equal(t, expected, Hostname(input), "input: %q", input)
 	}
@@ -200,17 +209,16 @@ func TestHostname_IPv6(t *testing.T) {
 	do("https://[2001:db8::1]/x", "2001:db8::1")
 }
 
-// TestHostname_MatchesNormalizeHost pins the delegation: the two functions must
-// return the same value for every shape, so a caller cannot pick the wrong one.
+// TestHostname_MatchesNormalizeHost verifies that Hostname and NormalizeHost return
+// the same value for every shared seed.
 func TestHostname_MatchesNormalizeHost(t *testing.T) {
 	for _, seed := range seeds {
 		require.Equal(t, NormalizeHost(seed), Hostname(seed), "input: %q", seed)
 	}
 }
 
-// TestHostname_SchemeOnly is the regression test for a scheme that never names a
-// host. "https://" declares an authority and then supplies an empty one, so there
-// is no hostname to return -- and the scheme itself must never be mistaken for one.
+// TestHostname_SchemeOnly verifies that a scheme with an empty authority ("https://")
+// yields no hostname, and is never mistaken for one itself.
 func TestHostname_SchemeOnly(t *testing.T) {
 
 	do := func(input string, expected string) {

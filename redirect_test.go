@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIsSafeRedirectURL verifies that IsSafeRedirectURL accepts relative paths and http(s) URLs,
+// and rejects dangerous schemes and protocol-relative URLs
 func TestIsSafeRedirectURL(t *testing.T) {
 
 	// Same-site relative paths are safe.
@@ -29,16 +31,17 @@ func TestIsSafeRedirectURL(t *testing.T) {
 	// them as off-site absolute URLs — reject them.
 	require.False(t, IsSafeRedirectURL("//evil.example/phish"))
 
-	// Leading whitespace is stripped before parsing, exactly as a browser strips it,
+	// Leading whitespace is stripped before parsing, as a browser strips it,
 	// so the scheme underneath is judged on its own merits and rejected.
 	require.False(t, IsSafeRedirectURL("\tjavascript:alert(1)"))
 	require.False(t, IsSafeRedirectURL(" javascript:alert(1)"))
 }
 
-// TestIsSafeRedirectURL_AuthorityPrefixBypass pins the spellings that net/url reads as a
-// same-site path while a browser reads them as an off-site authority. Every one of these
-// resolved to https://evil.example/x in a browser while being reported safe. See AGENTS.md.
+// TestIsSafeRedirectURL_AuthorityPrefixBypass verifies that IsSafeRedirectURL and SafeURL reject
+// spellings that net/url reads as a same-site path but a browser reads as an off-site authority
 func TestIsSafeRedirectURL_AuthorityPrefixBypass(t *testing.T) {
+
+	// A browser resolves every one of these to https://evil.example/x. See AGENTS.md.
 
 	for _, target := range []string{
 		`/\evil.example/x`,   // backslash is a slash for http(s)
@@ -54,18 +57,18 @@ func TestIsSafeRedirectURL_AuthorityPrefixBypass(t *testing.T) {
 	}
 }
 
-// TestIsSafeRedirectURL_BackslashInPathIsSafe pins the other half of the authority rule:
-// a backslash outside the leading slash run stays on this host, so rejecting one would
-// break ordinary same-site paths.
+// TestIsSafeRedirectURL_BackslashInPathIsSafe verifies that IsSafeRedirectURL accepts same-site
+// paths that contain a backslash or leading whitespace but do not open an authority
 func TestIsSafeRedirectURL_BackslashInPathIsSafe(t *testing.T) {
 
+	// Only the first two characters open an authority, so rejecting a later
+	// backslash would break ordinary same-site paths.
 	require.True(t, IsSafeRedirectURL(`/foo/\evil.example`))
 	require.True(t, IsSafeRedirectURL(`\evil.example`))
 	require.True(t, IsSafeRedirectURL(" /stream/123"))
 }
 
-// TestNotSafeRedirectURL confirms the Not… twin is the exact inverse of its
-// Is… partner, per the package's paired-predicate convention.
+// TestNotSafeRedirectURL verifies that NotSafeRedirectURL is the inverse of IsSafeRedirectURL
 func TestNotSafeRedirectURL(t *testing.T) {
 
 	// Unsafe targets
@@ -115,16 +118,16 @@ func TestIsValidRedirectURL(t *testing.T) {
 	require.False(t, IsValidRedirectURL(`https:\\evil.example\x`))
 }
 
-// TestIsValidRedirectURL_UserinfoFollowsTheHost documents a deliberate acceptance: the
-// destination is the HOST, so a URL that reads like another site in its userinfo is still
-// judged on evil.com. Off-site is allowed by design, so this is not a bypass.
+// TestIsValidRedirectURL_UserinfoFollowsTheHost verifies that a URL naming another site in its
+// userinfo is accepted and judged by its host
 func TestIsValidRedirectURL_UserinfoFollowsTheHost(t *testing.T) {
 
+	// Off-site hosts are allowed by design, so this is a deliberate acceptance, not a bypass.
 	require.True(t, IsValidRedirectURL("https://emissary.social@evil.com/login"))
 	require.Equal(t, "evil.com", Hostname("https://emissary.social@evil.com/login"))
 }
 
-// TestNotValidRedirectURL confirms the Not… twin is the exact inverse of its Is… partner.
+// TestNotValidRedirectURL verifies that NotValidRedirectURL is the inverse of IsValidRedirectURL
 func TestNotValidRedirectURL(t *testing.T) {
 
 	require.True(t, NotValidRedirectURL("/signout"))
@@ -134,17 +137,16 @@ func TestNotValidRedirectURL(t *testing.T) {
 	require.False(t, NotValidRedirectURL("http://localhost:8080/share"))
 }
 
-// TestSafeURL_BlankSentinel documents the one place SafeURL and IsSafeRedirectURL
-// appear to disagree: SafeURL's "" doubles as its rejection sentinel, so a safe
-// value that re-serializes to "" cannot be told apart from a rejection. Both
-// spellings are harmless as an href.
+// TestSafeURL_BlankSentinel verifies that SafeURL returns "" both for the safe empty value
+// and for "//", which IsSafeRedirectURL rejects
 func TestSafeURL_BlankSentinel(t *testing.T) {
 
+	// SafeURL's "" doubles as its rejection sentinel, so a safe value that re-serializes
+	// to "" cannot be told apart from a rejection. Both are harmless as an href.
 	require.True(t, IsSafeRedirectURL(""))
 	require.Equal(t, "", SafeURL(""))
 
-	// "//" used to sit in this gap too. It is now refused outright, because two leading
-	// slashes open an authority, so the two functions agree about it.
+	// Two leading slashes open an authority, so both functions refuse "//"
 	require.False(t, IsSafeRedirectURL("//"))
 	require.Equal(t, "", SafeURL("//"))
 }

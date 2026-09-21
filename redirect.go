@@ -47,9 +47,8 @@ func NotValidRedirectURL(target string) bool {
 	return !IsValidRedirectURL(target)
 }
 
-// parseSafeURL parses target and reports whether it is safe to use as a redirect
-// destination or link href. The returned URL is nil, and only nil, when target is
-// rejected as unparseable.
+// parseSafeURL parses target and reports whether it is a safe redirect destination or
+// link href. The returned URL is nil only when target does not parse.
 func parseSafeURL(target string) (*url.URL, bool) {
 
 	// This is the single copy of the safe/unsafe decision: IsSafeRedirectURL reports it,

@@ -5,9 +5,8 @@ import (
 	"strings"
 )
 
-// Host returns the RFC 6454 origin of a URL (e.g. "https://server.com:8080"), lower-cased,
-// dropping any userinfo, path, query, fragment, and default port. Only http and https URLs
-// are recognized; anything else returns "".
+// Host returns the lower-cased RFC 6454 origin of an http(s) URL (e.g. "https://server.com:8080"),
+// omitting a default port, or "" for anything else.
 func Host(value string) string {
 
 	// Parse the URL. An unparseable value is not a host.
@@ -38,10 +37,8 @@ func Host(value string) string {
 // the scheme's default.
 func trimDefaultPort(scheme string, authority string) string {
 
-	// RFC 6454 §6.2 omits the default port when serializing an origin, so the two
-	// spellings of one origin have to produce one string. An IPv6 literal is always
-	// bracketed ("[::1]:443"), which keeps the port at the tail of the authority, so
-	// a suffix trim can never eat part of the host.
+	// RFC 6454 §6.2 omits the default port from an origin. An IPv6 literal is always
+	// bracketed ("[::1]:443"), so a suffix trim can never eat part of the host.
 	switch scheme {
 
 	case SchemeHTTP:

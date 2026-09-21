@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestNormalizeHost verifies that NormalizeHost reduces a bare host, "host:port", URL,
+// userinfo, or IPv6 literal to its lower-cased bare host
 func TestNormalizeHost(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -51,9 +53,8 @@ func TestNormalizeHost(t *testing.T) {
 	do("", "")
 }
 
-// FuzzNormalizeHost verifies that NormalizeHost never panics and always
-// lower-cases its output. (Unlike Hostname, the output MAY contain colons,
-// so that invariant is intentionally NOT asserted here.)
+// FuzzNormalizeHost verifies that NormalizeHost never panics, and always returns
+// a lower-cased result with no slash
 func FuzzNormalizeHost(f *testing.F) {
 
 	f.Add("https://example.com:8080/path?query=1")
@@ -63,6 +64,8 @@ func FuzzNormalizeHost(f *testing.F) {
 	f.Add("")
 
 	f.Fuzz(func(t *testing.T, input string) {
+
+		// Colons are not checked: an IPv6 result is unbracketed, so it may hold them
 		result := NormalizeHost(input)
 		require.Equal(t, strings.ToLower(result), result, "result should be lower-cased")
 		require.NotContains(t, result, "/", "result should not contain a slash")

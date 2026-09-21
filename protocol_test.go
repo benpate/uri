@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestProtocol verifies that Protocol returns the scheme plus "://", and "" for a value that
+// never had a "://" or cannot be parsed
 func TestProtocol(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -33,6 +35,7 @@ func TestProtocol(t *testing.T) {
 	do("https://x/%zz", "")
 }
 
+// TestGuessProtocolForHostname verifies that local hostnames get ProtocolHTTP and all others get ProtocolHTTPS
 func TestGuessProtocolForHostname(t *testing.T) {
 
 	// Local hostnames always use plain HTTP
@@ -45,6 +48,8 @@ func TestGuessProtocolForHostname(t *testing.T) {
 	require.Equal(t, ProtocolHTTPS, GuessProtocolForHostname(""))
 }
 
+// TestPrependProtocol verifies that PrependProtocol adds a guessed protocol when one is missing,
+// and returns "" when the result is not a valid http(s) URL
 func TestPrependProtocol(t *testing.T) {
 
 	do := func(input string, expected string) {

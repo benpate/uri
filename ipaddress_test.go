@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIsValidIPAddress verifies that IsValidIPAddress accepts IPv4 and IPv6 literals
+// and rejects out-of-range or non-IP values
 func TestIsValidIPAddress(t *testing.T) {
 	require.True(t, IsValidIPAddress("127.0.0.1"))
 	require.True(t, IsValidIPAddress("::1"))
@@ -14,6 +16,7 @@ func TestIsValidIPAddress(t *testing.T) {
 	require.False(t, IsValidIPAddress("hamburger"))
 }
 
+// TestNotValidIPAddress verifies that NotValidIPAddress is the inverse of IsValidIPAddress
 func TestNotValidIPAddress(t *testing.T) {
 
 	// NotValidIPAddress is the exact inverse of IsValidIPAddress
@@ -25,6 +28,8 @@ func TestNotValidIPAddress(t *testing.T) {
 	require.True(t, NotValidIPAddress(""))
 }
 
+// TestIsValidIP4Address verifies that IsValidIP4Address accepts IPv4 literals and rejects
+// IPv6, IPv4-mapped IPv6, and non-IP values
 func TestIsValidIP4Address(t *testing.T) {
 
 	require.True(t, IsValidIP4Address("127.0.0.1"))
@@ -44,6 +49,8 @@ func TestIsValidIP4Address(t *testing.T) {
 	require.False(t, IsValidIP4Address(""))
 }
 
+// TestIsValidIP6Address verifies that IsValidIP6Address accepts IPv6 literals, including
+// IPv4-mapped ones, and rejects IPv4 and non-IP values
 func TestIsValidIP6Address(t *testing.T) {
 
 	require.True(t, IsValidIP6Address("::1"))

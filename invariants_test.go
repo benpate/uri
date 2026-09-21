@@ -8,13 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// This file collects cross-function fuzz invariants. Each target asserts a
-// relationship that must hold for ALL inputs, not just hand-picked examples:
-//
-//   - every IsX / NotX pair must always disagree,
-//   - derived values must stay consistent with their primitives,
-//   - and most importantly, the SSRF-safety property: anything that resolves to
-//     a non-public IP must never be reported as public/non-local.
+/******************************************
+ * Cross-Function Fuzz Invariants
+ *
+ * Each target asserts a relationship that must hold for ALL inputs:
+ * every IsX / NotX pair disagrees, derived values stay consistent with
+ * their primitives, and (most importantly for SSRF) a non-public IP is
+ * never reported as public or non-local.
+ ******************************************/
 
 // seeds is a shared corpus of awkward inputs worth feeding to every target.
 var seeds = []string{
@@ -49,11 +50,8 @@ func addSeeds(f *testing.F) {
 	}
 }
 
-// FuzzSSRFSafety is the headline invariant for this package: for any literal IP,
-// "local" and "public" must be exact opposites. IsLocalHostname delegates its IP
-// case to NotPublicIP, so the two share a single blocklist and can never drift —
-// a non-public IP (loopback, private, link-local, CGNAT, NAT64, documentation,
-// benchmark, reserved, etc.) is ALWAYS classified local, and vice-versa.
+// FuzzSSRFSafety verifies that IsLocalHostname is the exact opposite of IsPublicIP for any
+// literal IP, and that IsPublicIPAddress agrees with IsPublicIP for every string.
 func FuzzSSRFSafety(f *testing.F) {
 
 	addSeeds(f)
@@ -170,12 +168,8 @@ func FuzzPrependProtocolWellFormed(f *testing.F) {
 	})
 }
 
-// FuzzSafeURLMatchesRedirectGuard pins the relationship between the two link-safety
-// entry points: SafeURL must accept exactly what IsSafeRedirectURL accepts, because
-// both ask parseSafeURL. SafeURL adds neutralization on top -- never a looser or
-// stricter rule about what is safe. The one permitted gap is that SafeURL's ""
-// return doubles as its rejection sentinel, so a safe value that re-serializes to
-// "" (the empty string, "//") is indistinguishable from a rejection.
+// FuzzSafeURLMatchesRedirectGuard verifies that SafeURL never returns a value IsSafeRedirectURL
+// rejects, and that IsSafeRedirectURL accepts everything IsValidRedirectURL does.
 func FuzzSafeURLMatchesRedirectGuard(f *testing.F) {
 
 	addSeeds(f)

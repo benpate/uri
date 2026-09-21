@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestHost_PortedFromDomainPackage verifies that Host reduces an http(s) URL to its scheme
+// and authority, dropping the path
 func TestHost_PortedFromDomainPackage(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -29,6 +31,7 @@ func TestHost_PortedFromDomainPackage(t *testing.T) {
 	do("not-a-host", "")
 }
 
+// TestHost_Lowercase verifies that Host lower-cases the scheme and host
 func TestHost_Lowercase(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -41,6 +44,7 @@ func TestHost_Lowercase(t *testing.T) {
 	do("HtTpS://Server.COM/x", "https://server.com")
 }
 
+// TestHost_StripsQueryAndFragment verifies that Host drops the querystring and fragment
 func TestHost_StripsQueryAndFragment(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -55,6 +59,7 @@ func TestHost_StripsQueryAndFragment(t *testing.T) {
 	do("https://server.com:8080/path?q=1#frag", "https://server.com:8080")
 }
 
+// TestHost_StripsUserinfo verifies that Host drops credentials from the authority
 func TestHost_StripsUserinfo(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -67,6 +72,7 @@ func TestHost_StripsUserinfo(t *testing.T) {
 	do("https://user:pass@server.com:8080/path", "https://server.com:8080")
 }
 
+// TestHost_IPv6 verifies that Host keeps the brackets on an IPv6 literal, with or without a port
 func TestHost_IPv6(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -78,6 +84,8 @@ func TestHost_IPv6(t *testing.T) {
 	do("https://[2001:db8::1]/x", "https://[2001:db8::1]")
 }
 
+// TestHost_EdgeCases verifies that Host returns "" for empty, non-http(s), hostless,
+// schemeless, and unparseable values
 func TestHost_EdgeCases(t *testing.T) {
 
 	do := func(input string, expected string) {
@@ -168,8 +176,8 @@ func TestHost_DefaultPort(t *testing.T) {
 	do("http://[::1]:8080", "http://[::1]:8080")
 }
 
-// TestTrimDefaultPort covers the helper directly, including the schemes Host
-// never passes it, so the RFC 6454 rule is pinned independent of its caller.
+// TestTrimDefaultPort verifies that trimDefaultPort drops only its own scheme's default port,
+// and none at all for a scheme it does not know.
 func TestTrimDefaultPort(t *testing.T) {
 
 	// Each scheme drops only its OWN default port

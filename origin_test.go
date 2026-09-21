@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestIsSameOrigin verifies IsSameOrigin and NotSameOrigin against matching origins,
+// a different scheme, host, or port, and invalid values
 func TestIsSameOrigin(t *testing.T) {
 
 	testCases := []struct {

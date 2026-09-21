@@ -47,10 +47,8 @@ func IsLocalHostname(hostname string) bool {
 		return true
 	}
 
-	// Any IP address that is not publicly routable is local. Delegating to
-	// NotPublicIP keeps a single source of truth for the blocked ranges (private,
-	// link-local, unspecified, CGNAT, NAT64, documentation, benchmarking, etc.)
-	// so the two functions can never drift apart.
+	// Any IP address that is not publicly routable is local. NotPublicIP is the single
+	// source of truth for those ranges, so the two can never drift. See AGENTS.md.
 	if ip := net.ParseIP(hostname); ip != nil {
 		return NotPublicIP(ip)
 	}
