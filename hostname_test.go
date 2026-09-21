@@ -132,20 +132,29 @@ func TestValidateHostname(t *testing.T) {
 	require.NotNil(t, ValidateHostname("example.invalidtld"))           // bad TLD
 }
 
-// FuzzHostname verifies that Hostname never panics and that its output never
-// contains a path separator, a port separator, or upper-case characters.
+// FuzzHostname verifies that Hostname never panics, never returns a slash or upper-case
+// characters, and always strips the port from a plain "host:port".
 func FuzzHostname(f *testing.F) {
 
 	f.Add("https://example.com:8080/path?query=1")
 	f.Add("EXAMPLE.COM")
 	f.Add("localhost")
 	f.Add("")
+	f.Add("0::")
+	f.Add("[::1]:8080")
 
 	f.Fuzz(func(t *testing.T, input string) {
 		result := Hostname(input)
 		require.NotContains(t, result, "/", "result should not contain a slash")
-		require.NotContains(t, result, ":", "result should not contain a colon")
 		require.Equal(t, strings.ToLower(result), result, "result should be lower-cased")
+
+		// RULE: An IPv6 literal comes back unbracketed with its colons, so only a
+		// single-colon, unbracketed input is certain to be a "host:port"
+		if strings.Contains(input, "[") || (strings.Count(input, ":") != 1) {
+			return
+		}
+
+		require.NotContains(t, result, ":", "Hostname(%q) = %q kept the port", input, result)
 	})
 }
 
