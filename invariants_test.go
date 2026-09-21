@@ -153,18 +153,34 @@ func FuzzIPAddressClassUnion(f *testing.F) {
 	})
 }
 
-// FuzzPrependProtocolWellFormed asserts that PrependProtocol either fails
-// (returns "") or returns a string that is itself a valid URL.
+// FuzzPrependProtocolWellFormed asserts that PrependProtocol either fails (returns "") or
+// returns a valid URL, whose added protocol is the one guessed for its host.
 func FuzzPrependProtocolWellFormed(f *testing.F) {
 
 	addSeeds(f)
+	f.Add("localhost:8080/path")
+	f.Add("192.168.1.5:8080")
+	f.Add("mailto:me@example.com")
 
 	f.Fuzz(func(t *testing.T, input string) {
 
-		if result := PrependProtocol(input); result != "" {
-			require.True(t, IsValidURL(result),
-				"non-empty PrependProtocol(%q) = %q must be a valid URL", input, result)
+		result := PrependProtocol(input)
+
+		if result == "" {
+			return
 		}
+
+		require.True(t, IsValidURL(result),
+			"non-empty PrependProtocol(%q) = %q must be a valid URL", input, result)
+
+		// A value that already had a protocol comes back unchanged
+		if Protocol(input) != "" {
+			require.Equal(t, input, result, "PrependProtocol(%q) changed a URL with a protocol", input)
+			return
+		}
+
+		// Otherwise the added protocol is http for a local host and https for the rest
+		require.Equal(t, GuessProtocolForHostname(input)+input, result, "PrependProtocol(%q)", input)
 	})
 }
 

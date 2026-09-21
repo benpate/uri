@@ -1,6 +1,9 @@
 package uri
 
-import "net/url"
+import (
+	"net/url"
+	"strings"
+)
 
 /******************************************
  * Protocols
@@ -36,28 +39,62 @@ func Protocol(uri string) string {
 	return parsedURL.Scheme + ProtocolSuffix
 }
 
-// PrependProtocol adds the correct protocol to the beginning of a URL if needed.
+// PrependProtocol adds a protocol to a URL that has none, using http for a host on the
+// local network and https for everything else. It returns "" if the result is not valid.
 func PrependProtocol(uri string) string {
 
-	// Parse the URI.  Without a protocol, it may not be valid (yet)
-	parsedURL, err := url.Parse(uri)
+	// A value that already carries its own protocol is checked, never changed
+	if Protocol(uri) != "" {
+		return validURLOrEmpty(uri)
+	}
 
-	if err != nil {
+	// RULE: Another scheme ("mailto:", "tel:") cannot become http(s). url.Parse also reads
+	// "host:port" as a scheme, so only a payload that is not a port marks a real one.
+	if hasOpaqueScheme(uri) {
 		return ""
 	}
 
-	// If we don't have a protocol, then guess and prepend it.
-	if parsedURL.Scheme == "" {
-		uri = GuessProtocolForHostname(parsedURL.Hostname()) + uri
+	// Guess from the host, which IsLocalHostname finds in any shape ("host:port", a path, ...)
+	return validURLOrEmpty(GuessProtocolForHostname(uri) + uri)
+}
+
+// hasOpaqueScheme returns TRUE if value parses as "scheme:payload" and the payload does not
+// begin with a port number, as "localhost:8080/path" does.
+func hasOpaqueScheme(value string) bool {
+
+	parsed, err := url.Parse(value)
+
+	if err != nil {
+		return false
 	}
 
-	// Last step: Verify that the URL is valid with the new protocol
-	if _, err := ParseURL(uri); err != nil {
+	if parsed.Opaque == "" {
+		return false
+	}
+
+	port, _, _ := strings.Cut(parsed.Opaque, "/")
+	return !isPort(port)
+}
+
+// isPort returns TRUE if value is a non-empty run of ASCII digits
+func isPort(value string) bool {
+
+	if value == "" {
+		return false
+	}
+
+	return strings.Trim(value, "0123456789") == ""
+}
+
+// validURLOrEmpty returns value if it is a valid http(s) URL, and "" otherwise
+func validURLOrEmpty(value string) string {
+
+	if _, err := ParseURL(value); err != nil {
 		return ""
 	}
 
 	// Verily, good sir.
-	return uri
+	return value
 }
 
 // GuessProtocolForHostname returns ProtocolHTTP for a host on the local network, and
