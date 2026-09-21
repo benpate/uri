@@ -29,9 +29,39 @@ func TestIsSafeRedirectURL(t *testing.T) {
 	// them as off-site absolute URLs — reject them.
 	require.False(t, IsSafeRedirectURL("//evil.example/phish"))
 
-	// Leading-whitespace tricks fail to parse and must fail closed (a browser
-	// would strip the whitespace and execute the scheme).
+	// Leading whitespace is stripped before parsing, exactly as a browser strips it,
+	// so the scheme underneath is judged on its own merits and rejected.
 	require.False(t, IsSafeRedirectURL("\tjavascript:alert(1)"))
+	require.False(t, IsSafeRedirectURL(" javascript:alert(1)"))
+}
+
+// TestIsSafeRedirectURL_AuthorityPrefixBypass pins the spellings that net/url reads as a
+// same-site path while a browser reads them as an off-site authority. Every one of these
+// resolved to https://evil.example/x in a browser while being reported safe. See AGENTS.md.
+func TestIsSafeRedirectURL_AuthorityPrefixBypass(t *testing.T) {
+
+	for _, target := range []string{
+		`/\evil.example/x`,   // backslash is a slash for http(s)
+		`\\evil.example/x`,   // both slashes backslashed
+		`\/evil.example/x`,   // backslash then slash
+		`/\/evil.example/x`,  // extra slashes are ignored after the authority opens
+		`///evil.example/x`,  // three forward slashes, which net/url reads as an empty host
+		" //evil.example/x",  // leading space, which a browser strips before it parses
+		"\t//evil.example/x", // leading tab, likewise
+	} {
+		require.False(t, IsSafeRedirectURL(target), "target %q must be rejected", target)
+		require.Equal(t, "", SafeURL(target), "target %q must not survive SafeURL", target)
+	}
+}
+
+// TestIsSafeRedirectURL_BackslashInPathIsSafe pins the other half of the authority rule:
+// a backslash outside the leading slash run stays on this host, so rejecting one would
+// break ordinary same-site paths.
+func TestIsSafeRedirectURL_BackslashInPathIsSafe(t *testing.T) {
+
+	require.True(t, IsSafeRedirectURL(`/foo/\evil.example`))
+	require.True(t, IsSafeRedirectURL(`\evil.example`))
+	require.True(t, IsSafeRedirectURL(" /stream/123"))
 }
 
 // TestNotSafeRedirectURL confirms the Not… twin is the exact inverse of its
@@ -43,11 +73,65 @@ func TestNotSafeRedirectURL(t *testing.T) {
 	require.True(t, NotSafeRedirectURL("data:text/html,<script>alert(1)</script>"))
 	require.True(t, NotSafeRedirectURL("//evil.com/path"))
 	require.True(t, NotSafeRedirectURL("\tjavascript:alert(1)"))
+	require.True(t, NotSafeRedirectURL(`/\evil.com/path`))
 
 	// Safe targets
 	require.False(t, NotSafeRedirectURL("/relative/path"))
 	require.False(t, NotSafeRedirectURL("https://example.com/path"))
 	require.False(t, NotSafeRedirectURL("http://example.com"))
+}
+
+// TestIsValidRedirectURL covers the stricter rule: a destination chosen by a REMOTE
+// server must be an absolute http(s) URL naming a real host.
+func TestIsValidRedirectURL(t *testing.T) {
+
+	// An absolute http(s) URL is the whole point, and an off-site host is allowed.
+	require.True(t, IsValidRedirectURL("https://mastodon.social/share?text=hello"))
+	require.True(t, IsValidRedirectURL("http://example.com/news"))
+
+	// Local development home servers must keep working: loopback, literal IP, and mDNS
+	// names are valid hostnames even though they carry no IANA TLD.
+	require.True(t, IsValidRedirectURL("http://localhost:8080/share"))
+	require.True(t, IsValidRedirectURL("http://127.0.0.1:8080/share"))
+	require.True(t, IsValidRedirectURL("http://friday.local/share"))
+
+	// A relative path is not a destination here, which is the difference from
+	// IsSafeRedirectURL: a remote server may not name a path on this server.
+	require.False(t, IsValidRedirectURL("/signout"))
+	require.False(t, IsValidRedirectURL("/@me/settings/delete"))
+	require.False(t, IsValidRedirectURL("relative/path"))
+	require.False(t, IsValidRedirectURL(""))
+
+	// Everything IsSafeRedirectURL refuses stays refused.
+	require.False(t, IsValidRedirectURL("javascript:alert(1)"))
+	require.False(t, IsValidRedirectURL("data:text/html,<script>alert(1)</script>"))
+	require.False(t, IsValidRedirectURL("file:///etc/passwd"))
+	require.False(t, IsValidRedirectURL("//evil.example/x"))
+	require.False(t, IsValidRedirectURL(`/\evil.example/x`))
+
+	// A scheme with no host, or a host that cannot exist, is not a destination.
+	require.False(t, IsValidRedirectURL("https://"))
+	require.False(t, IsValidRedirectURL("https://phish.invalidtld/x"))
+	require.False(t, IsValidRedirectURL(`https:\\evil.example\x`))
+}
+
+// TestIsValidRedirectURL_UserinfoFollowsTheHost documents a deliberate acceptance: the
+// destination is the HOST, so a URL that reads like another site in its userinfo is still
+// judged on evil.com. Off-site is allowed by design, so this is not a bypass.
+func TestIsValidRedirectURL_UserinfoFollowsTheHost(t *testing.T) {
+
+	require.True(t, IsValidRedirectURL("https://emissary.social@evil.com/login"))
+	require.Equal(t, "evil.com", Hostname("https://emissary.social@evil.com/login"))
+}
+
+// TestNotValidRedirectURL confirms the Not… twin is the exact inverse of its Is… partner.
+func TestNotValidRedirectURL(t *testing.T) {
+
+	require.True(t, NotValidRedirectURL("/signout"))
+	require.True(t, NotValidRedirectURL("javascript:alert(1)"))
+	require.True(t, NotValidRedirectURL(`/\evil.example/x`))
+	require.False(t, NotValidRedirectURL("https://example.com/path"))
+	require.False(t, NotValidRedirectURL("http://localhost:8080/share"))
 }
 
 // TestSafeURL_BlankSentinel documents the one place SafeURL and IsSafeRedirectURL
@@ -56,8 +140,11 @@ func TestNotSafeRedirectURL(t *testing.T) {
 // spellings are harmless as an href.
 func TestSafeURL_BlankSentinel(t *testing.T) {
 
-	for _, blank := range []string{"", "//"} {
-		require.True(t, IsSafeRedirectURL(blank), "input: %q", blank)
-		require.Equal(t, "", SafeURL(blank), "input: %q", blank)
-	}
+	require.True(t, IsSafeRedirectURL(""))
+	require.Equal(t, "", SafeURL(""))
+
+	// "//" used to sit in this gap too. It is now refused outright, because two leading
+	// slashes open an authority, so the two functions agree about it.
+	require.False(t, IsSafeRedirectURL("//"))
+	require.Equal(t, "", SafeURL("//"))
 }

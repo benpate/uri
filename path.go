@@ -63,5 +63,5 @@ func safeLocalPath(path string) string {
 	// ("//host", "/\host", "\\host", ...) while preserving any "//" or
 	// "\" that appears later in the path.  Browsers treat a backslash as a forward slash in
 	// the authority position, so backslashes must be collapsed alongside slashes.
-	return "/" + strings.TrimLeft(path, `/\`)
+	return "/" + strings.TrimLeft(path, authoritySlashes)
 }

@@ -21,7 +21,9 @@
 //     user-supplied host, and it is deliberately stricter than IsLocalHostname.
 //   - Redirect and link safety — IsSafeRedirectURL rejects the "javascript:",
 //     "data:", and protocol-relative targets that turn an open redirect into
-//     XSS, and SafeURL additionally escapes a value for use in an attribute.
+//     XSS, judging them the way a browser parses them rather than the way
+//     net/url does. IsValidRedirectURL additionally requires an absolute
+//     http(s) URL, and SafeURL escapes a value for use in an attribute.
 //
 // The IANA TLD list is embedded at build time, so the package needs no network
 // access. RefreshTLDs can update it at runtime, and fails closed onto the list

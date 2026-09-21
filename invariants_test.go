@@ -90,6 +90,7 @@ func FuzzPredicatePairsDisagree(f *testing.F) {
 		require.NotEqual(t, IsSchemeValid(input), NotSchemeValid(input), "scheme pair: %q", input)
 		require.NotEqual(t, IsLoopback(input), NotLoopback(input), "loopback pair: %q", input)
 		require.NotEqual(t, IsSafeRedirectURL(input), NotSafeRedirectURL(input), "redirect pair: %q", input)
+		require.NotEqual(t, IsValidRedirectURL(input), NotValidRedirectURL(input), "valid-redirect pair: %q", input)
 		require.NotEqual(t, IsLocalHostname(input), NotLocalHostname(input), "local-hostname pair: %q", input)
 		require.NotEqual(t, IsLocalURL(input), NotLocalURL(input), "local-url pair: %q", input)
 		require.NotEqual(t, IsPublicIPAddress(input), NotPublicIPAddress(input), "public-ip pair: %q", input)
@@ -183,6 +184,7 @@ func FuzzSafeURLMatchesRedirectGuard(f *testing.F) {
 		"javascript:alert(1)", "data:text/html,<script>", "//evil.com/x", "//",
 		"/path", "?q=1", "#frag", "mailto:a@b.c", "\tjavascript:alert(1)",
 		"https://x.com/a'b", "/\\evil.com", "%6aavascript:alert(1)",
+		"\\\\evil.com/x", "\\/evil.com/x", "/\\/evil.com/x", "///evil.com/x", " //evil.com/x",
 	} {
 		f.Add(seed)
 	}
@@ -191,6 +193,11 @@ func FuzzSafeURLMatchesRedirectGuard(f *testing.F) {
 
 		safe := IsSafeRedirectURL(input)
 		neutralized := SafeURL(input)
+
+		// The stricter rule can never be looser: a valid destination is always a safe one.
+		if IsValidRedirectURL(input) {
+			require.True(t, safe, "IsValidRedirectURL accepted %q, which IsSafeRedirectURL rejects", input)
+		}
 
 		// SafeURL must NEVER hand back a value the redirect guard would refuse
 		if neutralized != "" {
