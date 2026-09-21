@@ -9,12 +9,8 @@ import (
 // reference.  The scheme and host (if any) are discarded.
 func Path(uri string) string {
 
-	// Like PathAndQuery, the result is always a path that begins
-	// with a single "/" and is NOT protocol-relative; an input
-	// that cannot be parsed yields "/".  See PathAndQuery for the
-	// details of how leading slashes and backslashes are collapsed.
-
 	// Parse the URL.  This already discards any scheme and host, leaving the path.
+	// An unparseable input yields "/", exactly as PathAndQuery does.
 	parsedURL, err := url.Parse(uri)
 
 	if err != nil {
@@ -25,19 +21,11 @@ func Path(uri string) string {
 }
 
 // PathAndQuery returns the path and query portions of a URL as a safe, root-absolute,
-// same-origin reference.  The scheme and host (if any) are discarded, so the result is
-// suitable to place directly in an HTTP "Location" header without risking an open
-// redirect to another host.
+// same-origin reference that can go directly into an HTTP "Location" header.
 func PathAndQuery(uri string) string {
 
-	// The result is always a path that begins with a single "/" and is NOT protocol-relative
-	// (an input that cannot be parsed yields "/").  In particular, any leading run of slashes
-	// and/or backslashes -- "//host", "///host", "/\host", "\\host", etc. -- is collapsed to
-	// a single "/", because browsers treat a backslash as a forward slash in the authority
-	// position and would otherwise navigate off-site.  Slashes and backslashes that appear
-	// later in the path are left untouched.
-
 	// Parse the URL.  This already discards any scheme and host, leaving the path/query.
+	// An unparseable input yields "/", never "".
 	parsedURL, err := url.Parse(uri)
 
 	if err != nil {
@@ -59,9 +47,22 @@ func PathAndQuery(uri string) string {
 // "/", and guarantees the result is root-absolute.
 func safeLocalPath(path string) string {
 
-	// This neutralizes every protocol-relative form
-	// ("//host", "/\host", "\\host", ...) while preserving any "//" or
-	// "\" that appears later in the path.  Browsers treat a backslash as a forward slash in
-	// the authority position, so backslashes must be collapsed alongside slashes.
+	// RULE: A browser deletes every tab and newline before it parses, so delete them first,
+	// or a decoded "/\t/host" survives the collapse below and then reads as "//host".
+	path = strings.Map(dropTabOrNewline, path)
+
+	// Collapse the leading run that opens an authority ("//host", "/\host", "\\host", ...)
+	// while leaving any "//" or "\" later in the path alone.  See AGENTS.md.
 	return "/" + strings.TrimLeft(path, authoritySlashes)
+}
+
+// dropTabOrNewline maps an ASCII tab or newline to -1, which strings.Map deletes, and
+// leaves every other rune unchanged.
+func dropTabOrNewline(r rune) rune {
+
+	if strings.ContainsRune(tabOrNewline, r) {
+		return -1
+	}
+
+	return r
 }

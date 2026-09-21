@@ -8,17 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// isProtocolRelative reports whether a browser would treat s as pointing at another host
-// when placed in a Location header.  It mirrors the browser rule that "\" is equivalent
-// to "/" in the authority position, so it checks the slash-normalized form.
+// isProtocolRelative reports whether a browser would read s as pointing at another host,
+// after deleting tabs and newlines and reading "\" as "/", as a browser does.
 func isProtocolRelative(s string) bool {
-	normalized := strings.ReplaceAll(s, "\\", "/")
+	normalized := strings.NewReplacer("\t", "", "\n", "", "\r", "", "\\", "/").Replace(s)
 	return strings.HasPrefix(normalized, "//")
 }
 
-// TestPathAndQuery_Redirect covers PathAndQuery as an open-redirect sanitizer: every
-// off-site vector must be neutralized to a same-origin path, and every legitimate local
-// path must be preserved exactly.
+// TestPathAndQuery_Redirect verifies that PathAndQuery neutralizes every off-site vector
+// and preserves every legitimate local path exactly.
 func TestPathAndQuery_Redirect(t *testing.T) {
 
 	// safe pins the exact, expected output for one input.
@@ -29,10 +27,8 @@ func TestPathAndQuery_Redirect(t *testing.T) {
 		})
 	}
 
-	// neutralized asserts an input is rendered non-off-site: the result is a root-absolute
-	// path that is not protocol-relative and carries no authority.  Used for attack vectors
-	// where the exact same-origin path is unimportant, only that it can no longer redirect
-	// to another host.
+	// neutralized asserts that the result is a root-absolute path with no authority, for
+	// attack vectors where only the absence of an off-site redirect matters.
 	neutralized := func(name, input string) {
 		t.Helper()
 		t.Run(name, func(t *testing.T) {
@@ -67,6 +63,12 @@ func TestPathAndQuery_Redirect(t *testing.T) {
 	neutralized("authority with path and query", "//evil.com/path?q=1")
 	neutralized("absolute url strips host", "https://evil.com/x")
 	neutralized("uppercase scheme strips host", "HTTPS://evil.com/x")
+	neutralized("encoded tab between slashes", "/%09/evil.com")
+	neutralized("encoded newline between slashes", "/%0A/evil.com")
+	neutralized("encoded carriage return between slashes", "/%0D/evil.com")
+	neutralized("encoded tab after encoded slash", "/%2F%09/evil.com")
+	neutralized("encoded tab between backslashes", "/%5C%09%5Cevil.com")
+	neutralized("encoded tab with no leading slash", "%09/evil.com")
 
 	// --- Legitimate local references: preserved exactly ---
 	safe("simple path", "/dashboard", "/dashboard")
@@ -121,6 +123,8 @@ func TestPath_Redirect(t *testing.T) {
 	neutralized("backslash authority", `/\evil.com`)
 	neutralized("leading double backslash", `\\evil.com`)
 	neutralized("authority-relative double slash", "//evil.com")
+	neutralized("encoded tab between slashes", "/%09/evil.com")
+	neutralized("encoded newline between slashes", "/%0A/evil.com")
 
 	safe("simple path", "/dashboard", "/dashboard")
 	safe("strips host and query", "https://localhost/path?and=query", "/path")
@@ -129,17 +133,15 @@ func TestPath_Redirect(t *testing.T) {
 	safe("bad percent-escape falls back to root", "https://localhost/%zz", "/")
 }
 
-// FuzzPathAndQuery_SafeRedirect is the security invariant under fuzzing: for ANY input,
-// the result of PathAndQuery is never something a browser would treat as an off-site
-// redirect.  It is always a root-absolute path that is not protocol-relative and carries
-// no authority.
+// FuzzPathAndQuery_SafeRedirect verifies that PathAndQuery never returns a value that a
+// browser would follow off-site, whatever the input.
 func FuzzPathAndQuery_SafeRedirect(f *testing.F) {
 
 	seeds := []string{
 		"", "/", "//evil.com", "///evil.com", "/%2f%2fevil.com", `/\evil.com`,
 		`\\evil.com`, "https://evil.com/x", "/legit/path?q=1", "path/no/slash",
 		"?q=1", "/a//b", "javascript:alert(1)", "//evil.com/x?y=z#frag",
-		"/%5c%5cevil.com", "\t//evil.com",
+		"/%5c%5cevil.com", "\t//evil.com", "/%09/evil.com",
 	}
 
 	for _, seed := range seeds {

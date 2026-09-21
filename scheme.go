@@ -3,17 +3,12 @@ package uri
 import "net/url"
 
 /******************************************
-* SCHEMES
-* A Scheme represents addressing scheme used
-* in a URI -such as http or https - and
-* DOES NOT include the "://" suffix
-******************************************/
-
-// SchemeHTTP represents the "http" network scheme (without the :// suffix)
-const SchemeHTTP = "http"
-
-// SchemeHTTPS represents the "https" network scheme (without the :// suffix)
-const SchemeHTTPS = "https"
+ * Schemes
+ *
+ * A Scheme is the addressing scheme used in a
+ * URI, such as http or https, and DOES NOT
+ * include the "://" suffix.
+ ******************************************/
 
 // Scheme returns the scheme portion of a URL (without the "://" suffix),
 // or an empty string if the URL cannot be parsed.
@@ -37,9 +32,8 @@ func NotSchemeValid(scheme string) bool {
 	return !IsSchemeValid(scheme)
 }
 
-// GuessSchemeForHostname returns the correct scheme
-// for a given hostname. Hosts on the public network always
-// use HTTPS, and hosts on the local network always use HTTP.
+// GuessSchemeForHostname returns SchemeHTTP for a host on the local network, and
+// SchemeHTTPS for everything else.
 func GuessSchemeForHostname(hostname string) string {
 
 	if IsLocalHostname(hostname) {

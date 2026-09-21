@@ -9,14 +9,12 @@ import (
 )
 
 /******************************************
-* TLD
-* A "top-level domain" is the last segment
-* of a domain name, following the final dot.
-* Examples include "com", "org", "net", and "io".
-******************************************/
-
-// ianaTLDList is the canonical location of the IANA top-level-domain list.
-const ianaTLDList = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
+ * TLDs
+ *
+ * A "top-level domain" is the last segment
+ * of a domain name, following the final dot.
+ * Examples include "com", "org", "net", and "io".
+ ******************************************/
 
 // IsValidTLD returns TRUE if the provided "top level domain" is found in the IANA list.
 func IsValidTLD(tld string) bool {

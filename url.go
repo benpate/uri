@@ -1,6 +1,7 @@
 package uri
 
 import (
+	"net/http"
 	"net/url"
 
 	"github.com/benpate/derp"
@@ -29,11 +30,13 @@ func ValidateURL(uri string) error {
 // requires a valid hostname and http/https scheme.
 func ParseURL(uri string) (*url.URL, error) {
 
+	const location = "uri.ParseURL"
+
 	// Use original url.Parse to verify that the URL "looks" valid
 	parsed, err := url.Parse(uri)
 
 	if err != nil {
-		return nil, err
+		return nil, derp.Wrap(err, location, "Unable to parse URL", uri, derp.WithCode(http.StatusUnprocessableEntity))
 	}
 
 	// RULE: Require valid https or http protocol scheme

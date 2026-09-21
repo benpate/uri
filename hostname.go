@@ -1,6 +1,7 @@
 package uri
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/benpate/derp"
@@ -53,10 +54,10 @@ func ValidateHostname(hostname string) error {
 	ascii, err := idna.ToASCII(hostname)
 
 	if err != nil {
-		return derp.Wrap(err, location, "Unable to convert 'punycode' domain to ASCII", hostname)
+		return derp.Wrap(err, location, "Unable to convert 'punycode' domain to ASCII", hostname, derp.WithCode(http.StatusUnprocessableEntity))
 	}
 
-	// Convert value to upper case letters only (for case insensitive comparisons)
+	// Convert value to lower case letters only (for case insensitive comparisons)
 	ascii = strings.ToLower(ascii)
 
 	// RULE: Validate total length (RFC 1035)
